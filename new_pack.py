@@ -11,6 +11,15 @@ Usage:
     [--name Modpack_Core] \\
     [--org h2-modpack]
 
+Example (this modpack):
+  python Setup/new_pack.py \\
+    --output ~/Projects/h2-modular-modpack \\
+    --pack-id "h2-modpack" \\
+    --title "Adamant Modpack" \\
+    --namespace adamant \\
+    --name Modpack_Core \\
+    --org h2-modpack
+
 After running:
   cd <output>
   python Setup/deploy_all.py --overwrite
@@ -24,8 +33,6 @@ import argparse
 import json
 
 
-SETUP_DIR    = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR     = os.path.dirname(SETUP_DIR)
 LIB_URL      = "https://github.com/h2-modpack/h2-modpack-Lib.git"
 FRAMEWORK_URL = "https://github.com/h2-modpack/h2-modpack-Framework.git"
 SETUP_URL    = "https://github.com/h2-modpack/Setup.git"
