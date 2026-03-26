@@ -179,6 +179,7 @@ CHANGELOG_MD = """\
 """
 
 
+
 # =============================================================================
 # HELPERS
 # =============================================================================
@@ -235,6 +236,8 @@ def main():
     name   = args.name  or pack_id_to_name(args.pack_id)
     output = os.path.join(ROOT_DIR, f"{args.pack_id}-modpack")
 
+    shell_repo       = f"{args.pack_id}-modpack"
+    shell_url        = f"https://github.com/{args.org}/{shell_repo}.git"
     coordinator_id   = f"{args.namespace}-{name}"
     coordinator_repo = f"{args.pack_id}-coordinator"
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
@@ -242,6 +245,7 @@ def main():
     print(f"\n  New pack: {title}")
     print(f"  Output:   {output}")
     print(f"  Pack ID:  {args.pack_id}")
+    print(f"  Shell:    {args.org}/{shell_repo}")
     print(f"  Coord:    {coordinator_id} -> {args.org}/{coordinator_repo}\n")
 
     if os.path.exists(output):
@@ -251,10 +255,18 @@ def main():
     os.makedirs(output)
 
     # -------------------------------------------------------------------------
-    # Git init
+    # Shell repo — create on GitHub, init locally, set remote
     # -------------------------------------------------------------------------
-    print(">>> Initialising git repo...")
-    run(["git", "init", "-b", "main"], cwd=output)
+    print(f">>> Creating shell repo {args.org}/{shell_repo}...")
+    run([
+        "gh", "repo", "create", f"{args.org}/{shell_repo}",
+        "--public",
+        "--description", f"{title} modpack",
+    ])
+
+    print("\n>>> Initialising git repo...")
+    run(["git", "init", "-b", "main"],                    cwd=output)
+    run(["git", "remote", "add", "origin", shell_url],    cwd=output)
 
     # -------------------------------------------------------------------------
     # Lib and Framework submodules
@@ -288,10 +300,27 @@ def main():
         NAME         = name,
         ORG          = args.org,
     )
-    write(os.path.join(coord_dir, "src", "main.lua"),        fill(MAIN_LUA,           **subs))
-    write(os.path.join(coord_dir, "src", "config.lua"),      fill(CONFIG_LUA,         **subs))
-    write(os.path.join(coord_dir, "thunderstore.toml"),      fill(THUNDERSTORE_TOML,  **subs))
-    write(os.path.join(coord_dir, "CHANGELOG.md"),           CHANGELOG_MD)
+    # Inline templates (Lua/TOML — tightly coupled to new_pack.py logic)
+    write(os.path.join(coord_dir, "src", "main.lua"),     fill(MAIN_LUA,          **subs))
+    write(os.path.join(coord_dir, "src", "config.lua"),   fill(CONFIG_LUA,        **subs))
+    write(os.path.join(coord_dir, "thunderstore.toml"),   fill(THUNDERSTORE_TOML, **subs))
+    write(os.path.join(coord_dir, "CHANGELOG.md"),        CHANGELOG_MD)
+
+    # File templates from Setup/templates/coordinator/ — fill() is a no-op on files without placeholders
+    templates_dir = os.path.join(SETUP_DIR, "templates", "coordinator")
+    for dirpath, _, filenames in os.walk(templates_dir):
+        for filename in filenames:
+            src = os.path.join(dirpath, filename)
+            rel = os.path.relpath(src, templates_dir)
+            dst = os.path.join(coord_dir, rel)
+            with open(src, "r", encoding="utf-8") as f:
+                write(dst, fill(f.read(), **subs))
+            if os.path.basename(src) == "pre-commit":
+                os.chmod(dst, 0o755)
+
+    # Shared assets from Setup/ root
+    shutil.copy2(os.path.join(SETUP_DIR, "icon.png"), os.path.join(coord_dir, "icon.png"))
+    shutil.copy2(os.path.join(SETUP_DIR, "LICENSE"),  os.path.join(coord_dir, "LICENSE"))
 
     manifest = {
         "namespace":      args.namespace,
@@ -336,6 +365,14 @@ def main():
     run(["git", "submodule", "add", "--branch", "main", SETUP_URL, "Setup"], cwd=output)
 
     # -------------------------------------------------------------------------
+    # Push shell repo
+    # -------------------------------------------------------------------------
+    print("\n>>> Pushing shell repo...")
+    run(["git", "add", "."],                          cwd=output)
+    run(["git", "commit", "-m", "Initial commit"],    cwd=output)
+    run(["git", "push", "-u", "origin", "main"],      cwd=output)
+
+    # -------------------------------------------------------------------------
     # Self-cleanup — delete the standalone Setup clone (now a submodule)
     # -------------------------------------------------------------------------
     print("\n>>> Cleaning up standalone Setup clone...")
@@ -351,10 +388,11 @@ def main():
     # -------------------------------------------------------------------------
     print(f"""
 ==========================================================
-  Done! Shell repo created at:
-  {output}
+  Done!
 
-  Coordinator repo: https://github.com/{args.org}/{coordinator_repo}
+  Shell repo:  https://github.com/{args.org}/{shell_repo}
+  Coordinator: https://github.com/{args.org}/{coordinator_repo}
+  Local path:  {output}
 
   Next steps:
     cd {output}

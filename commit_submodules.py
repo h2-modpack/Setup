@@ -1,5 +1,5 @@
 """
-Commit and push all Submodules/adamant-* repos with a shared commit message.
+Commit and push all Submodules/* repos with a shared commit message.
 Skips repos with nothing to commit.
 
 Usage:
@@ -17,7 +17,10 @@ ROOT_DIR  = os.path.dirname(SETUP_DIR)
 
 
 def discover_submodules():
-    return sorted(glob.glob(os.path.join(ROOT_DIR, "Submodules", "adamant-*")))
+    return sorted(
+        d for d in glob.glob(os.path.join(ROOT_DIR, "Submodules", "*"))
+        if os.path.isdir(d)
+    )
 
 
 def run(cmd, cwd):

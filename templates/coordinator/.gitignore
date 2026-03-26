@@ -1,0 +1,13 @@
+*.zip
+*.7z
+
+# For files used only by a symlink to the ReturnOfModding plugins folder
+/src/LICENSE
+/src/icon.png
+/src/manifest.json
+
+# For build artifacts created by the Thunderstore CLI
+/build
+tcli.exe
+/ThunderstoreCLI
+/R2M
