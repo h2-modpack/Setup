@@ -31,6 +31,7 @@ After running:
 
 import os
 import sys
+import stat
 import shutil
 import subprocess
 import argparse
@@ -182,6 +183,14 @@ CHANGELOG_MD = """\
 # HELPERS
 # =============================================================================
 
+def rmtree(path):
+    """shutil.rmtree with read-only override (required for .git/ on Windows)."""
+    def force_remove(func, p, _):
+        os.chmod(p, stat.S_IWRITE)
+        func(p)
+    shutil.rmtree(path, onexc=force_remove)
+
+
 def fill(template, **kwargs):
     for key, value in kwargs.items():
         template = template.replace("{{" + key + "}}", value)
@@ -310,7 +319,7 @@ def main():
     run(["git", "push", "-u", "origin", "main"],                     cwd=coord_dir)
 
     # Remove the local dir so git submodule add can clone it cleanly.
-    shutil.rmtree(coord_dir)
+    rmtree(coord_dir)
 
     print(f"\n>>> Adding coordinator as submodule...")
     run(["git", "submodule", "add", "--branch", "main", coordinator_url, coordinator_id], cwd=output)
@@ -331,7 +340,7 @@ def main():
     # -------------------------------------------------------------------------
     print("\n>>> Cleaning up standalone Setup clone...")
     try:
-        shutil.rmtree(SETUP_DIR)
+        rmtree(SETUP_DIR)
         print("  Deleted.")
     except Exception as e:
         print(f"  Could not delete {SETUP_DIR}: {e}")
