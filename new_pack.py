@@ -2,26 +2,30 @@
 Scaffolds a new modpack shell repo with Lib, Framework, and a coordinator.
 Creates the coordinator GitHub repo automatically via the gh CLI.
 
-Usage:
-  python Setup/new_pack.py \\
-    --output ~/Projects/my-pack \\
-    --pack-id "my-pack" \\
-    --title "My Pack" \\
-    --namespace mynamespace \\
-    [--name Modpack_Core] \\
-    [--org h2-modpack]
+Clone Setup next to where you want the new pack, then run:
 
-Example (this modpack):
+  git clone https://github.com/h2-modpack/Setup.git
+  python Setup/new_pack.py --pack-id "my-pack" --namespace mynamespace
+
+The shell repo is created as a sibling of the Setup folder:
+  ../my-pack-modpack/
+
+The standalone Setup clone is deleted at the end — it re-enters as a submodule.
+
+Optional overrides:
+  [--title "My Pack"]           default: title-case of pack-id
+  [--name my_pack_coordinator]  default: <pack_id>_coordinator
+  [--org h2-modpack]            default: h2-modpack
+
+Example (this modpack, --name overridden for backwards compat):
   python Setup/new_pack.py \\
-    --output ~/Projects/h2-modular-modpack \\
     --pack-id "h2-modpack" \\
-    --title "Adamant Modpack" \\
     --namespace adamant \\
-    --name Modpack_Core \\
-    --org h2-modpack
+    --title "Adamant Modpack" \\
+    --name Modpack_Core
 
 After running:
-  cd <output>
+  cd ../h2-modpack-modpack
   python Setup/deploy_all.py --overwrite
 """
 
@@ -33,9 +37,12 @@ import argparse
 import json
 
 
-LIB_URL      = "https://github.com/h2-modpack/h2-modpack-Lib.git"
+SETUP_DIR     = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR      = os.path.dirname(SETUP_DIR)
+
+LIB_URL       = "https://github.com/h2-modpack/h2-modpack-Lib.git"
 FRAMEWORK_URL = "https://github.com/h2-modpack/h2-modpack-Framework.git"
-SETUP_URL    = "https://github.com/h2-modpack/Setup.git"
+SETUP_URL     = "https://github.com/h2-modpack/Setup.git"
 
 
 # =============================================================================
@@ -196,22 +203,34 @@ def run(cmd, cwd=None):
 # MAIN
 # =============================================================================
 
+def pack_id_to_title(pack_id):
+    """'run-director' -> 'Run Director'"""
+    return " ".join(w.capitalize() for w in pack_id.replace("_", "-").split("-"))
+
+
+def pack_id_to_name(pack_id):
+    """'run-director' -> 'run_director_coordinator'"""
+    return pack_id.replace("-", "_") + "_coordinator"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new modpack shell repo")
-    parser.add_argument("--output",          required=True,               help="Path to create the new shell repo")
-    parser.add_argument("--pack-id",         required=True,               help="Pack ID used in Framework.init (e.g. 'my-pack')")
-    parser.add_argument("--title",           required=True,               help="Window title (e.g. 'My Pack')")
-    parser.add_argument("--namespace",       required=True,               help="Thunderstore namespace")
-    parser.add_argument("--name",      default="Modpack_Core", help="Coordinator mod name (default: Modpack_Core)")
-    parser.add_argument("--org",       default="h2-modpack",   help="GitHub org for the coordinator repo (default: h2-modpack)")
+    parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.init (e.g. 'run-director')")
+    parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
+    parser.add_argument("--title",     default=None,   help="Window title (default: title-case of pack-id)")
+    parser.add_argument("--name",      default=None,   help="Coordinator mod name (default: <pack_id>_coordinator)")
+    parser.add_argument("--org",       default="h2-modpack", help="GitHub org (default: h2-modpack)")
     args = parser.parse_args()
 
-    output           = os.path.abspath(args.output)
-    coordinator_id   = f"{args.namespace}-{args.name}"
+    title  = args.title or pack_id_to_title(args.pack_id)
+    name   = args.name  or pack_id_to_name(args.pack_id)
+    output = os.path.join(ROOT_DIR, f"{args.pack_id}-modpack")
+
+    coordinator_id   = f"{args.namespace}-{name}"
     coordinator_repo = f"{args.pack_id}-coordinator"
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
 
-    print(f"\n  New pack: {args.title}")
+    print(f"\n  New pack: {title}")
     print(f"  Output:   {output}")
     print(f"  Pack ID:  {args.pack_id}")
     print(f"  Coord:    {coordinator_id} -> {args.org}/{coordinator_repo}\n")
@@ -246,7 +265,7 @@ def main():
     run([
         "gh", "repo", "create", f"{args.org}/{coordinator_repo}",
         "--public",
-        "--description", f"{args.title} modpack coordinator",
+        "--description", f"{title} modpack coordinator",
     ])
 
     # Generate coordinator files into a local git repo and push first,
@@ -255,9 +274,9 @@ def main():
     subs = dict(
         COORD_ID     = coordinator_id,
         PACK_ID      = args.pack_id,
-        WINDOW_TITLE = args.title,
+        WINDOW_TITLE = title,
         NAMESPACE    = args.namespace,
-        NAME         = args.name,
+        NAME         = name,
         ORG          = args.org,
     )
     write(os.path.join(coord_dir, "src", "main.lua"),        fill(MAIN_LUA,           **subs))
@@ -267,8 +286,8 @@ def main():
 
     manifest = {
         "namespace":      args.namespace,
-        "name":           args.name,
-        "description":    f"{args.title} modpack coordinator.",
+        "name":           name,
+        "description":    f"{title} modpack coordinator.",
         "version_number": "1.0.0",
         "dependencies": [
             "Hell2Modding-Hell2Modding-1.0.78",
@@ -306,6 +325,17 @@ def main():
     # -------------------------------------------------------------------------
     print("\n>>> Adding Setup submodule...")
     run(["git", "submodule", "add", "--branch", "main", SETUP_URL, "Setup"], cwd=output)
+
+    # -------------------------------------------------------------------------
+    # Self-cleanup — delete the standalone Setup clone (now a submodule)
+    # -------------------------------------------------------------------------
+    print("\n>>> Cleaning up standalone Setup clone...")
+    try:
+        shutil.rmtree(SETUP_DIR)
+        print("  Deleted.")
+    except Exception as e:
+        print(f"  Could not delete {SETUP_DIR}: {e}")
+        print("  Safe to delete manually.")
 
     # -------------------------------------------------------------------------
     # Done
