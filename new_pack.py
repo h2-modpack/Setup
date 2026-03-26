@@ -18,6 +18,7 @@ After running:
 
 import os
 import sys
+import shutil
 import subprocess
 import argparse
 import json
@@ -230,7 +231,7 @@ def main():
     run(["git", "submodule", "add", "--branch", "main", FRAMEWORK_URL, "adamant-modpack-Framework"], cwd=output)
 
     # -------------------------------------------------------------------------
-    # Coordinator — create GitHub repo then add as submodule
+    # Coordinator — generate files, push to new GitHub repo, then add as submodule
     # -------------------------------------------------------------------------
     coord_dir = os.path.join(output, coordinator_id)
 
@@ -241,10 +242,9 @@ def main():
         "--description", f"{args.title} modpack coordinator",
     ])
 
-    print(f"\n>>> Adding coordinator submodule...")
-    run(["git", "submodule", "add", "--branch", "main", coordinator_url, coordinator_id], cwd=output)
-
-    # Generate coordinator files
+    # Generate coordinator files into a local git repo and push first,
+    # so the remote has a commit before we add it as a submodule.
+    print(f"\n>>> Initialising coordinator and pushing initial commit...")
     subs = dict(
         COORD_ID     = coordinator_id,
         PACK_ID      = args.pack_id,
@@ -276,6 +276,18 @@ def main():
         "FullName": coordinator_id,
     }
     write(os.path.join(coord_dir, "src", "manifest.json"), json.dumps(manifest, indent=2) + "\n")
+
+    run(["git", "init", "-b", "main"],                              cwd=coord_dir)
+    run(["git", "remote", "add", "origin", coordinator_url],        cwd=coord_dir)
+    run(["git", "add", "."],                                         cwd=coord_dir)
+    run(["git", "commit", "-m", "Initial commit"],                   cwd=coord_dir)
+    run(["git", "push", "-u", "origin", "main"],                     cwd=coord_dir)
+
+    # Remove the local dir so git submodule add can clone it cleanly.
+    shutil.rmtree(coord_dir)
+
+    print(f"\n>>> Adding coordinator as submodule...")
+    run(["git", "submodule", "add", "--branch", "main", coordinator_url, coordinator_id], cwd=output)
 
     # -------------------------------------------------------------------------
     # Submodules/ placeholder
