@@ -6,12 +6,12 @@ identity (namespace, name, pack-id, website URL), wires git hooks,
 commits the filled files, pushes, and registers it as a submodule.
 
 Usage (run from the shell repo root):
-  python Setup/new_module.py --name SkipPausingEncounters --pack-id speedrun
+  python Setup/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org
 
   --name      PascalCase module name   (e.g. SkipPausingEncounters)
   --pack-id   Pack this module belongs to (e.g. speedrun) — sets modpack field
-  --namespace Thunderstore namespace   (default: adamant)
-  --org       GitHub org               (default: h2-modpack)
+  --namespace Thunderstore namespace   (e.g. adamant)
+  --org       GitHub org               (e.g. h2-modpack)
 
 What will be created:
   GitHub repo : {org}/{org}-{name}          e.g. h2-modpack/h2-modpack-SkipPausingEncounters
@@ -57,8 +57,8 @@ def main():
     parser = argparse.ArgumentParser(description="Scaffold a new module repo from template")
     parser.add_argument("--name",      required=True,           help="PascalCase module name (e.g. SkipPausingEncounters)")
     parser.add_argument("--pack-id",   required=True,           help="Pack this module belongs to (e.g. speedrun)")
-    parser.add_argument("--namespace", default="adamant",       help="Thunderstore namespace (default: adamant)")
-    parser.add_argument("--org",       default="h2-modpack",    help="GitHub org (default: h2-modpack)")
+    parser.add_argument("--namespace", required=True,            help="Thunderstore namespace (e.g. 'adamant')")
+    parser.add_argument("--org",       required=True,            help="GitHub org (e.g. 'h2-modpack')")
     args = parser.parse_args()
 
     module_id   = f"{args.namespace}-{args.name}"           # adamant-SkipPausingEncounters

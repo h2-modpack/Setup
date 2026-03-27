@@ -4,11 +4,14 @@ Register existing repos in Submodules/ as git submodules.
 Scans Submodules/ for git repos not yet registered in .gitmodules, reads their
 remote URL, and runs `git submodule add --force` to register them.
 
+With --prune, also removes .gitmodules entries whose Submodules/ folder is gone.
+
 Repos with no remote configured are skipped with a warning — create the GitHub
 repo first, add it as `origin`, then re-run this script.
 
 Usage (run from anywhere inside the shell repo):
-  python Setup/register_submodules.py
+  python Setup/scaffold/register_submodules.py
+  python Setup/scaffold/register_submodules.py --prune
 """
 
 import os
@@ -64,11 +67,60 @@ def current_branch(repo_path):
 # =============================================================================
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Register submodules and optionally prune removed ones")
+    parser.add_argument("--prune", action="store_true", help="Remove .gitmodules entries whose folder no longer exists")
+    args = parser.parse_args()
+
     if not os.path.isdir(SUBMODULES_DIR):
         print("No Submodules/ directory found.")
         sys.exit(0)
 
     already_registered = registered_paths()
+
+    # -------------------------------------------------------------------------
+    # Prune: entries in .gitmodules with no corresponding folder
+    # -------------------------------------------------------------------------
+    if args.prune:
+        to_prune = [
+            rel for rel in already_registered
+            if rel.startswith("Submodules/") and not os.path.isdir(os.path.join(ROOT_DIR, rel))
+        ]
+
+        if to_prune:
+            print(f"Pruning {len(to_prune)} removed submodule(s):\n")
+            for rel in sorted(to_prune):
+                print(f"  {rel}")
+
+            print()
+            failed_prune = []
+            for rel in sorted(to_prune):
+                print(f">>> deinit + rm {rel} ...", end=" ", flush=True)
+                r1 = run(["git", "submodule", "deinit", "-f", rel], cwd=ROOT_DIR)
+                r2 = run(["git", "rm", "-f", rel], cwd=ROOT_DIR)
+                if r1.returncode == 0 and r2.returncode == 0:
+                    print("done.")
+                else:
+                    print("FAILED.")
+                    if r1.returncode != 0:
+                        print(f"    deinit: {r1.stderr.strip()}")
+                    if r2.returncode != 0:
+                        print(f"    rm:     {r2.stderr.strip()}")
+                    failed_prune.append(rel)
+
+            print()
+            if failed_prune:
+                print(f"  {len(failed_prune)} prune(s) failed — check errors above.")
+                sys.exit(1)
+            else:
+                print(f"  Pruned. Re-reading registered paths...")
+                already_registered = registered_paths()
+        else:
+            print("Nothing to prune.")
+
+    # -------------------------------------------------------------------------
+    # Register: folders in Submodules/ not yet in .gitmodules
+    # -------------------------------------------------------------------------
     to_register = []
     warnings    = []
 
@@ -130,7 +182,7 @@ def main():
         print(f"  {len(failed)} failed — check errors above.")
         sys.exit(1)
     else:
-        print(f"  All registered. Run `python Setup/deploy_all.py --overwrite` to deploy.")
+        print(f"  All registered. Run `python Setup/deploy/deploy_all.py --overwrite` to deploy.")
 
 
 if __name__ == "__main__":

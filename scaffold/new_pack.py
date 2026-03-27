@@ -5,7 +5,7 @@ Creates the coordinator GitHub repo automatically via the gh CLI.
 Clone Setup next to where you want the new pack, then run:
 
   git clone https://github.com/h2-modpack/Setup.git
-  python Setup/new_pack.py --pack-id "speedrun" --namespace mynamespace
+  python Setup/new_pack.py --pack-id "speedrun" --namespace mynamespace --org my-org
 
 The shell repo is created as a sibling of the Setup folder:
   ../speedrun-modpack/
@@ -23,13 +23,12 @@ Naming convention:
     Lib folder:        adamant-ModpackLib
     Framework folder:  adamant-ModpackFramework
 
-Optional overrides:
+Optional:
   [--title "Speedrun Modpack"]  default: title-case of pack-id
-  [--org h2-modpack]            default: h2-modpack
 
 After running:
   cd ../speedrun-modpack
-  python Setup/deploy_all.py --overwrite
+  python Setup/deploy/deploy_all.py --overwrite
 """
 
 import os
@@ -207,7 +206,7 @@ def main():
     parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.init — single word preferred (e.g. 'speedrun')")
     parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
     parser.add_argument("--title",     default=None,   help="Window title (default: title-case of pack-id)")
-    parser.add_argument("--org",       default="h2-modpack", help="GitHub org (default: h2-modpack)")
+    parser.add_argument("--org",       required=True,        help="GitHub org (e.g. 'my-org')")
     args = parser.parse_args()
 
     title  = args.title or pack_id_to_title(args.pack_id)
