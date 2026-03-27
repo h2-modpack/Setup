@@ -8,7 +8,7 @@ Usage: python deploy_all.py [--overwrite] [--profile NAME]
 import os
 import sys
 import subprocess
-from deploy_common import base_parser, SETUP_DIR
+from deploy_common import base_parser, DEPLOY_DIR
 
 
 STEPS = [
@@ -38,7 +38,7 @@ def main():
     for script, label in STEPS:
         print(f">>> {label}...")
         result = subprocess.run(
-            [sys.executable, os.path.join(SETUP_DIR, script)] + passthrough
+            [sys.executable, os.path.join(DEPLOY_DIR, script)] + passthrough
         )
         if result.returncode != 0:
             print(f"ERROR: {script} failed with exit code {result.returncode}")

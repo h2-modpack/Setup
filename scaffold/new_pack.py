@@ -34,15 +34,14 @@ After running:
 
 import os
 import sys
-import stat
 import shutil
-import subprocess
 import argparse
 import json
+from setup_common import rmtree, fill, write, run
 
 
-SETUP_DIR     = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR      = os.path.dirname(SETUP_DIR)
+SETUP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT_DIR  = os.path.dirname(SETUP_DIR)
 
 LIB_URL       = "https://github.com/h2-modpack/ModpackLib.git"
 FRAMEWORK_URL = "https://github.com/h2-modpack/ModpackFramework.git"
@@ -134,7 +133,7 @@ namespace = "{{NAMESPACE}}"
 name = "{{NAME}}"
 versionNumber = "1.0.0"
 description = "{{WINDOW_TITLE}} modpack coordinator."
-websiteUrl = "https://github.com/{{ORG}}/{{PACK_ID}}-modpack-coordinator"
+websiteUrl = "https://github.com/{{ORG}}/{{NAME}}"
 containsNsfwContent = false
 
 [package.dependencies]
@@ -183,34 +182,6 @@ CHANGELOG_MD = """\
 
 
 
-# =============================================================================
-# HELPERS
-# =============================================================================
-
-def rmtree(path):
-    """shutil.rmtree with read-only override (required for .git/ on Windows)."""
-    def force_remove(func, p, _):
-        os.chmod(p, stat.S_IWRITE)
-        func(p)
-    shutil.rmtree(path, onexc=force_remove)
-
-
-def fill(template, **kwargs):
-    for key, value in kwargs.items():
-        template = template.replace("{{" + key + "}}", value)
-    return template
-
-
-def write(path, content):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(content)
-
-
-def run(cmd, cwd=None):
-    print(f"  $ {' '.join(cmd)}")
-    subprocess.run(cmd, cwd=cwd, check=True)
-
 
 # =============================================================================
 # MAIN
@@ -246,7 +217,7 @@ def main():
     shell_repo       = f"{args.pack_id}-modpack"
     shell_url        = f"https://github.com/{args.org}/{shell_repo}.git"
     coordinator_id   = f"{args.namespace}-{name}"
-    coordinator_repo = f"{args.pack_id}-modpack-coordinator"
+    coordinator_repo = name
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
 
     print(f"""
@@ -258,7 +229,7 @@ def main():
 
   GitHub repos (will be created under {args.org}/)
     Shell        : {shell_repo}
-    Coordinator  : {coordinator_repo}
+    Coordinator  : {coordinator_repo}  (github.com/{args.org}/{coordinator_repo})
 
   Submodule folders
     Lib          : adamant-ModpackLib

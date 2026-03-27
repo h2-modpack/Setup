@@ -14,5 +14,5 @@ if '%errorlevel%' NEQ '0' (
 )
 
 :: --- Launch Python ---
-python deploy_all.py %*
+python deploy\deploy_all.py %*
 pause

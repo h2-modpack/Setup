@@ -11,7 +11,7 @@ fi
 
 # --- Resolve Python and Launch ---
 if command -v python3 &> /dev/null; then
-    python3 deploy_all.py "$@"
+    python3 deploy/deploy_all.py "$@"
 else
-    python deploy_all.py "$@"
+    python deploy/deploy_all.py "$@"
 fi

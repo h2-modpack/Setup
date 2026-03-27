@@ -17,7 +17,7 @@ import subprocess
 import configparser
 
 
-SETUP_DIR      = os.path.dirname(os.path.abspath(__file__))
+SETUP_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR       = os.path.dirname(SETUP_DIR)
 SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
 GITMODULES     = os.path.join(ROOT_DIR, ".gitmodules")

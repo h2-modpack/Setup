@@ -8,8 +8,9 @@ import argparse
 import platform
 
 
-SETUP_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(SETUP_DIR)
+DEPLOY_DIR = os.path.dirname(os.path.abspath(__file__))
+SETUP_DIR  = os.path.dirname(DEPLOY_DIR)
+ROOT_DIR   = os.path.dirname(SETUP_DIR)
 DEFAULT_PROFILE = "h2-dev"
 
 

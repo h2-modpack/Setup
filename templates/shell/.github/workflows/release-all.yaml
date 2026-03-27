@@ -55,7 +55,7 @@ jobs:
           REGISTRY_MODULES=$(gh api repos/$ORG/{{SHELL_REPO}}/contents/Submodules \
             --jq '.[].name' | grep '^{{NAMESPACE}}-' | sed 's/^{{NAMESPACE}}-/{{ORG}}-/')
 
-          mapfile -t ALL_REPOS <<< "$(printf '{{PACK_ID}}-modpack-coordinator\n%s' "$REGISTRY_MODULES")"
+          mapfile -t ALL_REPOS <<< "$(printf '{{NAME}}\n%s' "$REGISTRY_MODULES")"
 
           if [ -n "$FILTER" ]; then
             IFS=',' read -ra REPOS <<< "$FILTER"

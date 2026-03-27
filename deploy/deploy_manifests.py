@@ -6,13 +6,13 @@ Usage: python deploy_manifests.py [--overwrite] [--profile NAME]
 import os
 import sys
 import subprocess
-from deploy_common import discover_mods, base_parser, SETUP_DIR
+from deploy_common import discover_mods, base_parser, DEPLOY_DIR
 
 
 def main():
     parser = base_parser("Generate manifest.json for all mods")
     args = parser.parse_args()
-    gen_script = os.path.join(SETUP_DIR, "generate_manifest.py")
+    gen_script = os.path.join(DEPLOY_DIR, "generate_manifest.py")
 
     print(f"\n  Manifest generation")
     print(f"  Overwrite: {args.overwrite}\n")
