@@ -1,0 +1,17 @@
+{
+    "Lua.runtime.version": "Lua 5.2",
+    "Lua.diagnostics.globals": [
+        "rom", "config", "imgui", "modutil", "public",
+        "import_as_fallback", "import", "ModifyTextBox", "MockDiscovery"
+    ],
+    "Lua.workspace.library": [
+        "{{GAME_PATH}}",
+        "{{R2MODMAN_PROFILE_PATH}}/ReturnOfModding/plugins/LuaENVY-ENVY",
+        "{{R2MODMAN_PROFILE_PATH}}/ReturnOfModding/plugins/SGG_Modding-Chalk",
+        "{{R2MODMAN_PROFILE_PATH}}/ReturnOfModding/plugins/SGG_Modding-DemonDaemon",
+        "{{R2MODMAN_PROFILE_PATH}}/ReturnOfModding/plugins/SGG_Modding-ENVY",
+        "{{R2MODMAN_PROFILE_PATH}}/ReturnOfModding/plugins/SGG_Modding-ModUtil",
+        "{{R2MODMAN_PROFILE_PATH}}/ReturnOfModding/plugins/SGG_Modding-ReLoad",
+        "{{R2MODMAN_PROFILE_PATH}}/ReturnOfModding/plugins/SGG_Modding-SJSON"
+    ]
+}

@@ -5,27 +5,30 @@ Creates the coordinator GitHub repo automatically via the gh CLI.
 Clone Setup next to where you want the new pack, then run:
 
   git clone https://github.com/h2-modpack/Setup.git
-  python Setup/new_pack.py --pack-id "my-pack" --namespace mynamespace
+  python Setup/new_pack.py --pack-id "speedrun" --namespace mynamespace
 
 The shell repo is created as a sibling of the Setup folder:
-  ../my-pack-modpack/
+  ../speedrun-modpack/
 
 The standalone Setup clone is deleted at the end — it re-enters as a submodule.
 
+Naming convention:
+  --pack-id should be a single lowercase word (e.g. "speedrun", "hades", "pvp").
+  Multi-word pack IDs work but produce longer coordinator names.
+
+  Given --pack-id "speedrun" --namespace "adamant":
+    Shell repo:        speedrun-modpack
+    Coordinator ID:    adamant-ModpackSpeedrunCore
+    Coordinator repo:  speedrun-modpack-coordinator
+    Lib folder:        adamant-ModpackLib
+    Framework folder:  adamant-ModpackFramework
+
 Optional overrides:
-  [--title "My Pack"]           default: title-case of pack-id
-  [--name my_pack_coordinator]  default: <pack_id>_coordinator
+  [--title "Speedrun Modpack"]  default: title-case of pack-id
   [--org h2-modpack]            default: h2-modpack
 
-Example (this modpack, --name overridden for backwards compat):
-  python Setup/new_pack.py \\
-    --pack-id "h2-modpack" \\
-    --namespace adamant \\
-    --title "Adamant Modpack" \\
-    --name Modpack_Core
-
 After running:
-  cd ../h2-modpack-modpack
+  cd ../speedrun-modpack
   python Setup/deploy_all.py --overwrite
 """
 
@@ -41,8 +44,8 @@ import json
 SETUP_DIR     = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR      = os.path.dirname(SETUP_DIR)
 
-LIB_URL       = "https://github.com/h2-modpack/h2-modpack-Lib.git"
-FRAMEWORK_URL = "https://github.com/h2-modpack/h2-modpack-Framework.git"
+LIB_URL       = "https://github.com/h2-modpack/ModpackLib.git"
+FRAMEWORK_URL = "https://github.com/h2-modpack/ModpackFramework.git"
 SETUP_URL     = "https://github.com/h2-modpack/Setup.git"
 
 
@@ -56,7 +59,7 @@ MAIN_LUA = """\
 -- {{COORD_ID}}: Modpack Coordinator
 -- =============================================================================
 -- Thin coordinator: wires globals, owns config and def, delegates everything
--- else to adamant-Modpack_Framework.
+-- else to adamant-ModpackFramework.
 
 local mods = rom.mods
 mods['SGG_Modding-ENVY'].auto()
@@ -80,7 +83,7 @@ local def = {
 local PACK_ID = "{{PACK_ID}}"
 
 local function init()
-    local Framework = mods['adamant-Modpack_Framework']
+    local Framework = mods['adamant-ModpackFramework']
     Framework.init({
         packId      = PACK_ID,
         windowTitle = "{{WINDOW_TITLE}}",
@@ -92,7 +95,7 @@ end
 
 local loader = reload.auto_single()
 modutil.once_loaded.game(function()
-    local Framework = mods['adamant-Modpack_Framework']
+    local Framework = mods['adamant-ModpackFramework']
     rom.gui.add_imgui(Framework.getRenderer(PACK_ID))
     rom.gui.add_to_menu_bar(Framework.getMenuBar(PACK_ID))
     loader.load(init, init)
@@ -140,8 +143,8 @@ LuaENVY-ENVY = "1.2.0"
 SGG_Modding-Chalk = "2.1.1"
 SGG_Modding-ReLoad = "1.0.2"
 SGG_Modding-ModUtil = "4.0.1"
-adamant-Modpack_Lib = "1.0.0"
-adamant-Modpack_Framework = "1.0.0"
+adamant-ModpackLib = "1.0.0"
+adamant-ModpackFramework = "1.0.0"
 
 
 [build]
@@ -218,22 +221,26 @@ def pack_id_to_title(pack_id):
     return " ".join(w.capitalize() for w in pack_id.replace("_", "-").split("-"))
 
 
+def pack_id_to_pascal(pack_id):
+    """'speedrun' -> 'Speedrun',  'my-pack' -> 'MyPack'"""
+    return "".join(w.capitalize() for w in pack_id.replace("-", "_").split("_"))
+
+
 def pack_id_to_name(pack_id):
-    """'run-director' -> 'run_director_coordinator'"""
-    return pack_id.replace("-", "_") + "_coordinator"
+    """'speedrun' -> 'ModpackSpeedrunCore'"""
+    return "Modpack" + pack_id_to_pascal(pack_id) + "Core"
 
 
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new modpack shell repo")
-    parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.init (e.g. 'run-director')")
+    parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.init — single word preferred (e.g. 'speedrun')")
     parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
     parser.add_argument("--title",     default=None,   help="Window title (default: title-case of pack-id)")
-    parser.add_argument("--name",      default=None,   help="Coordinator mod name (default: <pack_id>_coordinator)")
     parser.add_argument("--org",       default="h2-modpack", help="GitHub org (default: h2-modpack)")
     args = parser.parse_args()
 
     title  = args.title or pack_id_to_title(args.pack_id)
-    name   = args.name  or pack_id_to_name(args.pack_id)
+    name   = pack_id_to_name(args.pack_id)
     output = os.path.join(ROOT_DIR, f"{args.pack_id}-modpack")
 
     shell_repo       = f"{args.pack_id}-modpack"
@@ -272,10 +279,10 @@ def main():
     # Lib and Framework submodules
     # -------------------------------------------------------------------------
     print("\n>>> Adding Lib submodule...")
-    run(["git", "submodule", "add", "--branch", "main", LIB_URL, "adamant-modpack-Lib"], cwd=output)
+    run(["git", "submodule", "add", "--branch", "main", LIB_URL, "adamant-ModpackLib"], cwd=output)
 
     print("\n>>> Adding Framework submodule...")
-    run(["git", "submodule", "add", "--branch", "main", FRAMEWORK_URL, "adamant-modpack-Framework"], cwd=output)
+    run(["git", "submodule", "add", "--branch", "main", FRAMEWORK_URL, "adamant-ModpackFramework"], cwd=output)
 
     # -------------------------------------------------------------------------
     # Coordinator — generate files, push to new GitHub repo, then add as submodule
@@ -299,6 +306,7 @@ def main():
         NAMESPACE    = args.namespace,
         NAME         = name,
         ORG          = args.org,
+        SHELL_REPO   = shell_repo,
     )
     # Inline templates (Lua/TOML — tightly coupled to new_pack.py logic)
     write(os.path.join(coord_dir, "src", "main.lua"),     fill(MAIN_LUA,          **subs))
@@ -333,8 +341,8 @@ def main():
             "SGG_Modding-Chalk-2.1.1",
             "SGG_Modding-ReLoad-1.0.2",
             "SGG_Modding-ModUtil-4.0.1",
-            "adamant-Modpack_Lib-1.0.0",
-            "adamant-Modpack_Framework-1.0.0",
+            "adamant-ModpackLib-1.0.0",
+            "adamant-ModpackFramework-1.0.0",
         ],
         "website_url": f"https://github.com/{args.org}/{coordinator_repo}",
         "FullName": coordinator_id,
@@ -357,6 +365,20 @@ def main():
     # Submodules/ placeholder
     # -------------------------------------------------------------------------
     write(os.path.join(output, "Submodules", ".gitkeep"), "")
+
+    # -------------------------------------------------------------------------
+    # Shell repo template files (.gitignore, workflows, README, etc.)
+    # -------------------------------------------------------------------------
+    shell_templates_dir = os.path.join(SETUP_DIR, "templates", "shell")
+    if os.path.isdir(shell_templates_dir):
+        print("\n>>> Copying shell templates...")
+        for dirpath, _, filenames in os.walk(shell_templates_dir):
+            for filename in filenames:
+                src = os.path.join(dirpath, filename)
+                rel = os.path.relpath(src, shell_templates_dir)
+                dst = os.path.join(output, rel)
+                with open(src, "r", encoding="utf-8") as f:
+                    write(dst, fill(f.read(), **subs))
 
     # -------------------------------------------------------------------------
     # Setup submodule

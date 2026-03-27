@@ -1,0 +1,93 @@
+name: Release All
+run-name: ${{ format('{0} {1}', inputs.is-dry-run && 'Dry-run' || 'Release', inputs.tag) }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag / Version number (e.g. 1.0.1)"
+        required: true
+      is-dry-run:
+        description: "Dry-run (trigger dry-runs on all repos, no publish)"
+        type: boolean
+      modules:
+        description: "Comma-separated repo names to release (blank = all)"
+        required: false
+
+jobs:
+  release:
+    name: Trigger releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check input tag format
+        env:
+          TAG: ${{ inputs.tag }}
+          FILTER: ${{ inputs.modules }}
+        run: |
+          if ! echo "$TAG" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error title=Invalid package version number::Version numbers must follow the Major.Minor.Patch format (e.g. 1.45.320)."
+            exit 1
+          fi
+
+          PATCH_VERSION=$(echo "$TAG" | cut -d. -f3)
+
+          if [ -z "$FILTER" ]; then
+            if [ "$PATCH_VERSION" != "0" ]; then
+              echo "::error title=Invalid Mass Release Version::Mass releases (all modules) must end in .0 (e.g., 1.2.0) to reserve patch numbers for hotfixes."
+              exit 1
+            fi
+          else
+            if [ "$PATCH_VERSION" == "0" ]; then
+              echo "::error title=Invalid Hotfix Version::Targeted hotfixes must use a patch version greater than .0 (e.g., 1.2.1)."
+              exit 1
+            fi
+          fi
+
+      - name: Trigger release workflows
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_DISPATCH_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.is-dry-run }}
+          FILTER: ${{ inputs.modules }}
+        run: |
+          ORG="{{ORG}}"
+
+          REGISTRY_MODULES=$(gh api repos/$ORG/{{SHELL_REPO}}/contents/Submodules \
+            --jq '.[].name' | grep '^{{NAMESPACE}}-' | sed 's/^{{NAMESPACE}}-/{{ORG}}-/')
+
+          mapfile -t ALL_REPOS <<< "$(printf '{{PACK_ID}}-modpack-coordinator\n%s' "$REGISTRY_MODULES")"
+
+          if [ -n "$FILTER" ]; then
+            IFS=',' read -ra REPOS <<< "$FILTER"
+            for i in "${!REPOS[@]}"; do
+              REPOS[$i]=$(echo "${REPOS[$i]}" | xargs)
+            done
+          else
+            REPOS=("${ALL_REPOS[@]}")
+          fi
+
+          SUCCEEDED=0
+          FAILED=0
+
+          for REPO in "${REPOS[@]}"; do
+            echo "--- Triggering: $ORG/$REPO ---"
+            if gh workflow run release.yaml \
+              --repo "$ORG/$REPO" \
+              --field "tag=$TAG" \
+              --field "is-dry-run=$DRY_RUN"; then
+              echo "  Dispatched."
+              SUCCEEDED=$((SUCCEEDED + 1))
+            else
+              echo "  FAILED to dispatch."
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          echo ""
+          echo "=========================================="
+          echo "  Dispatched: $SUCCEEDED / $((SUCCEEDED + FAILED))"
+          if [ "$FAILED" -gt 0 ]; then
+            echo "  Failed: $FAILED"
+            exit 1
+          fi
+          echo "=========================================="

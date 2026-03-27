@@ -1,0 +1,34 @@
+name: Update submodule pointers
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # midnight UTC daily
+  workflow_dispatch: # manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f
+        with:
+          submodules: true
+          token: ${{ secrets.SUBMODULE_UPDATE_TOKEN }}
+
+      - name: Update all submodules to latest
+        run: git submodule update --remote
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "All submodule pointers are up to date."
+          else
+            git add -A
+            git commit -m "update submodule pointers"
+            git push
+          fi
