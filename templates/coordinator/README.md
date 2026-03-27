@@ -1,9 +1,13 @@
 # {{COORD_ID}}
 
-Coordinator for the {{WINDOW_TITLE}} modpack. Owns the pack identity, config, and default profiles. All orchestration (discovery, UI, hashing, HUD) is provided by `adamant-Modpack_Framework`.
+Coordinator for the {{WINDOW_TITLE}} modpack. Owns pack identity, config, and default profiles. All orchestration (discovery, UI, hashing, HUD) is provided by `adamant-ModpackFramework`.
 
-Part of the [{{WINDOW_TITLE}}](https://github.com/{{ORG}}/{{PACK_ID}}-modpack).
+Part of [{{WINDOW_TITLE}} Modpack](https://github.com/{{ORG}}/{{SHELL_REPO}}).
 
 ## Install
 
-Install via r2modman or Thunderstore. Requires `adamant-Modpack_Lib` and `adamant-Modpack_Framework`.
+Install via r2modman or Thunderstore. Requires `adamant-ModpackLib` and `adamant-ModpackFramework`.
+
+## For contributors
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for what the coordinator owns, and [adamant-ModpackFramework](https://github.com/h2-modpack/ModpackFramework) for the full architecture.
