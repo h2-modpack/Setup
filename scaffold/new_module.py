@@ -21,6 +21,7 @@ What will be created:
 
 import os
 import sys
+import time
 import argparse
 import subprocess
 from setup_common import run, rmtree
@@ -105,10 +106,23 @@ def main():
 
     # -------------------------------------------------------------------------
     # Clone into Submodules/
+    # GitHub takes a few seconds to push the template branch after repo creation.
     # -------------------------------------------------------------------------
     print(f"\n>>> Cloning into {submodule_rel}...")
     clone_url = f"https://github.com/{args.org}/{repo_name}.git"
-    run(["git", "clone", "--branch", "main", clone_url, local_path])
+    for attempt in range(1, 6):
+        result = subprocess.run(
+            ["git", "clone", "--branch", "main", clone_url, local_path],
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            break
+        if attempt < 5:
+            print(f"  Branch not ready yet, retrying in {attempt * 2}s... ({attempt}/5)")
+            time.sleep(attempt * 2)
+        else:
+            print(result.stderr.decode())
+            sys.exit(1)
 
     # -------------------------------------------------------------------------
     # Fill in module identity
