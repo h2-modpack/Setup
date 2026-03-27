@@ -14,7 +14,7 @@ Usage (run from the shell repo root):
   --org       GitHub org               (e.g. h2-modpack)
 
 What will be created:
-  GitHub repo : {org}/{org}-{name}          e.g. h2-modpack/h2-modpack-SkipPausingEncounters
+  GitHub repo : {org}/{name}                e.g. h2pack-speedrun/SkipPausingEncounters
   Local folder: Submodules/{ns}-{name}      e.g. Submodules/adamant-SkipPausingEncounters
   Thunderstore: {ns}-{name}                 e.g. adamant-SkipPausingEncounters
 """
@@ -67,7 +67,7 @@ def main():
     args = parser.parse_args()
 
     module_id      = f"{args.namespace}-{args.name}"         # adamant-SkipPausingEncounters
-    repo_name      = f"{args.org}-{args.name}"               # h2pack-speedrun-SkipPausingEncounters
+    repo_name      = args.name                               # SkipPausingEncounters
     website_url    = f"https://github.com/{args.org}/{repo_name}"
     local_path     = os.path.join(SUBMODULES_DIR, module_id)
     submodule_rel  = f"Submodules/{module_id}"
@@ -125,7 +125,7 @@ def main():
 
     # Fill PACK_ID in main.lua and main_special.lua
     pack_replacements = {
-        'local PACK_ID = error(\'FILL: set PACK_ID to your pack id, e.g. "speedrun"\')':
+        'local PACK_ID = error("FILL: set PACK_ID to your pack id")':
             f'local PACK_ID = "{args.pack_id}"',
     }
     for lua_file in ("main.lua", "main_special.lua"):
