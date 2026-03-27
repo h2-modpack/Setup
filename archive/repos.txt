@@ -13,7 +13,7 @@ h2-modpack-ShowLocation
 h2-modpack-ShimmeringFix
 h2-modpack-SeleneFix
 h2-modpack-SecondStageChanneling
-h2-modpack-RTAMode
+h2-modpack-SkipPausingEncounters
 h2-modpack-PreventEchoScam
 h2-modpack-PoseidonWavesFix
 h2-modpack-OmegaCastFix

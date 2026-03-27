@@ -131,7 +131,7 @@ namespace = "{{NAMESPACE}}"
 name = "{{NAME}}"
 versionNumber = "1.0.0"
 description = "{{WINDOW_TITLE}} modpack coordinator."
-websiteUrl = "https://github.com/{{ORG}}/{{PACK_ID}}-coordinator"
+websiteUrl = "https://github.com/{{ORG}}/{{PACK_ID}}-modpack-coordinator"
 containsNsfwContent = false
 
 [package.dependencies]
@@ -239,7 +239,7 @@ def main():
     shell_repo       = f"{args.pack_id}-modpack"
     shell_url        = f"https://github.com/{args.org}/{shell_repo}.git"
     coordinator_id   = f"{args.namespace}-{name}"
-    coordinator_repo = f"{args.pack_id}-coordinator"
+    coordinator_repo = f"{args.pack_id}-modpack-coordinator"
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
 
     print(f"\n  New pack: {title}")
