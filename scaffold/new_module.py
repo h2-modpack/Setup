@@ -32,6 +32,11 @@ SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
 TEMPLATE_REPO  = "h2-modpack/h2-modpack-template"
 
 
+def to_pascal(s):
+    """Convert a kebab/snake/lower string to PascalCase. 'speedrun' -> 'Speedrun', 'my-pack' -> 'MyPack'."""
+    return "".join(word.capitalize() for word in s.replace("-", " ").replace("_", " ").split())
+
+
 # =============================================================================
 # HELPERS
 # =============================================================================
@@ -61,11 +66,12 @@ def main():
     parser.add_argument("--org",       required=True,            help="GitHub org (e.g. 'h2-modpack')")
     args = parser.parse_args()
 
-    module_id   = f"{args.namespace}-{args.name}"           # adamant-SkipPausingEncounters
-    repo_name   = f"{args.org}-{args.name}"                 # h2-modpack-SkipPausingEncounters
-    website_url = f"https://github.com/{args.org}/{repo_name}"
-    local_path  = os.path.join(SUBMODULES_DIR, module_id)
-    submodule_rel = f"Submodules/{module_id}"
+    module_id      = f"{args.namespace}-{args.name}"         # adamant-SkipPausingEncounters
+    repo_name      = f"{args.org}-{args.name}"               # h2pack-speedrun-SkipPausingEncounters
+    website_url    = f"https://github.com/{args.org}/{repo_name}"
+    local_path     = os.path.join(SUBMODULES_DIR, module_id)
+    submodule_rel  = f"Submodules/{module_id}"
+    coordinator_id = f"{args.namespace}-Modpack{to_pascal(args.pack_id)}Core"  # adamant-ModpackSpeedrunCore
 
     print(f"""
   What will be created
@@ -117,12 +123,15 @@ def main():
         'https://github.com/h2-modpack/h2-modpack-TODO_ModName': website_url,
     })
 
-    # Set PACK_ID in main.lua (replace the error() placeholder with the actual value)
-    main_lua = os.path.join(local_path, "src", "main.lua")
-    replace_in_file(main_lua, {
-        'local PACK_ID     = error("FILL: set PACK_ID to your pack id, e.g. \\"h2-modpack\\"")':
+    # Fill PACK_ID in main.lua and main_special.lua
+    pack_replacements = {
+        'local PACK_ID = error(\'FILL: set PACK_ID to your pack id, e.g. "speedrun"\')':
             f'local PACK_ID = "{args.pack_id}"',
-    })
+    }
+    for lua_file in ("main.lua", "main_special.lua"):
+        path = os.path.join(local_path, "src", lua_file)
+        if os.path.exists(path):
+            replace_in_file(path, pack_replacements)
 
     # -------------------------------------------------------------------------
     # Wire git hooks
@@ -138,7 +147,7 @@ def main():
     # Commit filled files and push
     # -------------------------------------------------------------------------
     print("\n>>> Committing filled identity files...")
-    run(["git", "add", "thunderstore.toml", "src/main.lua"], cwd=local_path)
+    run(["git", "add", "thunderstore.toml", "src/main.lua", "src/main_special.lua"], cwd=local_path)
 
     result = git(["diff", "--cached", "--quiet"], cwd=local_path)
     if result.returncode == 0:
@@ -166,7 +175,7 @@ def main():
 
   Next steps:
     1. Edit src/main.lua — fill in apply(), revert(), definition fields
-    2. python Setup/deploy_all.py --overwrite
+    2. python Setup/deploy/deploy_all.py --overwrite
 ==========================================================
 """)
 
