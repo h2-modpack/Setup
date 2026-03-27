@@ -249,14 +249,33 @@ def main():
     coordinator_repo = f"{args.pack_id}-modpack-coordinator"
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
 
-    print(f"\n  New pack: {title}")
-    print(f"  Output:   {output}")
-    print(f"  Pack ID:  {args.pack_id}")
-    print(f"  Shell:    {args.org}/{shell_repo}")
-    print(f"  Coord:    {coordinator_id} -> {args.org}/{coordinator_repo}\n")
+    print(f"""
+  What will be created
+  ─────────────────────────────────────────────
+  Window title   : {title}
+  Pack ID        : {args.pack_id}
+  Local output   : {output}
+
+  GitHub repos (will be created under {args.org}/)
+    Shell        : {shell_repo}
+    Coordinator  : {coordinator_repo}
+
+  Submodule folders
+    Lib          : adamant-ModpackLib
+    Framework    : adamant-ModpackFramework
+    Coordinator  : {coordinator_id}
+
+  Thunderstore IDs
+    Coordinator  : {coordinator_id}  (namespace={args.namespace}, name={name})
+  ─────────────────────────────────────────────""")
+
+    answer = input("  Proceed? [y/N] ").strip().lower()
+    if answer != "y":
+        print("  Aborted.")
+        sys.exit(0)
 
     if os.path.exists(output):
-        print(f"ERROR: {output} already exists.")
+        print(f"\nERROR: {output} already exists.")
         sys.exit(1)
 
     os.makedirs(output)
