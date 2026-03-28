@@ -144,6 +144,9 @@ SGG_Modding-ModUtil = "4.0.1"
 adamant-ModpackLib = "1.0.0"
 adamant-ModpackFramework = "1.0.0"
 
+# -- submodules-start --
+
+# -- submodules-end --
 
 [build]
 icon = "./icon.png"
