@@ -12,6 +12,7 @@ Usage (run from the new shell repo root):
 """
 
 import os
+import re
 import sys
 import argparse
 import subprocess
@@ -49,6 +50,7 @@ def parse_repos_txt(path):
 def main():
     parser = argparse.ArgumentParser(description="Bulk-add submodules from repos.txt")
     parser.add_argument("--repos",   required=True, help="Path to repos.txt (produced by transfer_repos.py)")
+    parser.add_argument("--pack-id", default=None,  help="New pack ID to write into each module's src/main.lua (replaces modpack = '...')")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be added without doing it")
     args = parser.parse_args()
 
@@ -72,6 +74,7 @@ def main():
         print(f"  {path}  ({url})")
 
     print()
+    rewired = []
     failed = []
     for url, path, branch in entries:
         print(f">>> {path}")
@@ -82,6 +85,20 @@ def main():
         )
         if not ok:
             failed.append(path)
+            continue
+
+        if args.pack_id:
+            main_lua = os.path.join(ROOT_DIR, path, "src", "main.lua")
+            if os.path.exists(main_lua):
+                with open(main_lua, encoding="utf-8") as f:
+                    content = f.read()
+                new_content = re.sub(r'(modpack\s*=\s*)"[^"]*"', f'\\1"{args.pack_id}"', content)
+                if new_content != content:
+                    if not args.dry_run:
+                        with open(main_lua, "w", encoding="utf-8", newline="\n") as f:
+                            f.write(new_content)
+                    print(f"  rewired modpack → \"{args.pack_id}\" in {path}/src/main.lua")
+                    rewired.append(path)
 
     print()
     if failed:
@@ -92,6 +109,9 @@ def main():
             print("  Dry run complete. Re-run without --dry-run to add.")
         else:
             print("  All submodules added.")
+            if rewired:
+                print(f"  {len(rewired)} module(s) had modpack rewired to \"{args.pack_id}\".")
+                print("  Commit those changes with: python Setup/commit_submodules.py \"rewire pack id\"")
             print("  Next: python Setup/deploy/deploy_all.py --overwrite")
 
 
