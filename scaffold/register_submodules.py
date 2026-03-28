@@ -111,7 +111,7 @@ def current_submodule_names():
     for entry in sorted(os.scandir(SUBMODULES_DIR), key=lambda e: e.name):
         if not entry.is_dir() or entry.name.startswith("."):
             continue
-        if not os.path.isdir(os.path.join(entry.path, ".git")):
+        if not os.path.exists(os.path.join(entry.path, ".git")):
             continue
         names.append(entry.name)
     return names
@@ -231,7 +231,7 @@ def main():
         if not entry.is_dir() or name.startswith("."):
             continue
 
-        if not os.path.isdir(os.path.join(path, ".git")):
+        if not os.path.exists(os.path.join(path, ".git")):
             continue  # not a git repo, silently skip (.gitkeep etc.)
 
         if rel in already_registered:
