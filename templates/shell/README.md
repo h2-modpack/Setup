@@ -4,13 +4,13 @@ Shell repo for the {{WINDOW_TITLE}} modpack. Contains all module submodules, the
 
 ## Structure
 
-```
+```text
 {{SHELL_REPO}}/
-├── {{COORD_ID}}/          # Coordinator: pack identity, config, profiles
-├── adamant-ModpackFramework/  # Shared UI, discovery, hash, HUD
-├── adamant-ModpackLib/        # Shared utilities
-├── Setup/                     # Deploy scripts
-└── Submodules/                # Game modules (one repo each)
+|- {{COORD_ID}}/              # Coordinator: pack identity, config, profiles
+|- adamant-ModpackFramework/  # Shared UI, discovery, hash, HUD
+|- adamant-ModpackLib/        # Shared utilities
+|- Setup/                     # Deploy scripts
+'- Submodules/                # Game modules (one repo each)
 ```
 
 ## Setup
@@ -22,8 +22,11 @@ python Setup/deploy/deploy_all.py
 
 ## Releasing
 
-Use the **Release All** workflow (`Actions → Release All`) to publish a new version across all modules.
+Use the **Release All** workflow (`Actions -> Release All`) to publish a new version across all modules.
 
 ## Architecture
 
-See [h2-modular-modpack](https://github.com/h2-modpack/h2-modular-modpack) for full architecture documentation (Framework, Lib, staging pattern, hash pipeline).
+Shared architecture docs live upstream:
+
+- README: https://github.com/h2-modpack/h2-modular-modpack/blob/master/README.md
+- ARCHITECTURE: https://github.com/h2-modpack/h2-modular-modpack/blob/master/ARCHITECTURE.md
