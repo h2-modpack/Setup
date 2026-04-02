@@ -67,11 +67,10 @@ rom = rom
 _PLUGIN = _PLUGIN
 game = rom.game
 modutil = mods['SGG_Modding-ModUtil']
-chalk   = mods['SGG_Modding-Chalk']
-reload  = mods['SGG_Modding-ReLoad']
+local chalk   = mods['SGG_Modding-Chalk']
+local reload  = mods['SGG_Modding-ReLoad']
 
-config = chalk.auto('config.lua')
-public.config = config
+local config = chalk.auto('config.lua')
 
 local def = {
     NUM_PROFILES    = #config.Profiles,
