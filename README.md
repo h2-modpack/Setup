@@ -29,7 +29,7 @@ This repo lives at `Setup/` as a submodule in every shell repo it manages.
 | File | Description |
 |---|---|
 | `new_pack.py` | Scaffold a complete new shell repo: GitHub repos, submodules, coordinator files, initial push |
-| `new_module.py` | Scaffold a new module repo from template: create on GitHub, fill identity, register as submodule |
+| `new_module.py` | Scaffold a new module repo from template: choose regular or special, create on GitHub, fill identity, register as submodule |
 | `register_submodules.py` | Register untracked repos in `Submodules/` as submodules. `--prune` removes entries whose folder is gone |
 | `setup_common.py` | Shared utilities for scaffold scripts: `fill`, `write`, `run`, `rmtree` |
 
@@ -68,11 +68,14 @@ python Setup/deploy/deploy_all.py
 ### Add a new module to an existing pack
 
 ```bash
-python Setup/scaffold/new_module.py --name MyModName --pack-id my-pack
+python Setup/scaffold/new_module.py --name MyModName --pack-id my-pack --namespace adamant --org h2-modpack --kind regular
+python Setup/scaffold/new_module.py --name MySpecialMod --pack-id my-pack --namespace adamant --org h2-modpack --kind special
 python Setup/deploy/deploy_all.py --overwrite
 ```
 
 Creates the GitHub repo from template, fills in module identity, commits, and registers it as a submodule.
+`new_module.py` selects one template variant (`regular` or `special`), renames it to `src/main.lua`,
+and removes the unused alternate file.
 
 ### Local deploy after any change
 

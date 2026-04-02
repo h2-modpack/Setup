@@ -6,17 +6,22 @@ identity (namespace, name, pack-id, website URL), wires git hooks,
 commits the filled files, pushes, and registers it as a submodule.
 
 Usage (run from the shell repo root):
-  python Setup/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org
+  python Setup/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org --kind regular
+  python Setup/new_module.py --name FirstHammer --pack-id speedrun --namespace adamant --org my-org --kind special
 
   --name      PascalCase module name   (e.g. SkipPausingEncounters)
-  --pack-id   Pack this module belongs to (e.g. speedrun) — sets modpack field
+  --pack-id   Pack this module belongs to (e.g. speedrun) - sets modpack field
   --namespace Thunderstore namespace   (e.g. adamant)
   --org       GitHub org               (e.g. h2-modpack)
+  --kind      Module template kind     (regular or special)
 
 What will be created:
   GitHub repo : {org}/{name}                e.g. h2pack-speedrun/SkipPausingEncounters
   Local folder: Submodules/{ns}-{name}      e.g. Submodules/adamant-SkipPausingEncounters
   Thunderstore: {ns}-{name}                 e.g. adamant-SkipPausingEncounters
+
+The template repo keeps both `src/main_regular.lua` and `src/main_special.lua` as reference files.
+This scaffold selects one, renames it to `src/main.lua`, and deletes the unused variant.
 """
 
 import os
@@ -65,6 +70,8 @@ def main():
     parser.add_argument("--pack-id",   required=True,           help="Pack this module belongs to (e.g. speedrun)")
     parser.add_argument("--namespace", required=True,            help="Thunderstore namespace (e.g. 'adamant')")
     parser.add_argument("--org",       required=True,            help="GitHub org (e.g. 'h2-modpack')")
+    parser.add_argument("--kind",      choices=("regular", "special"), default="regular",
+                        help="Module template kind to scaffold (default: regular)")
     args = parser.parse_args()
 
     module_id      = f"{args.namespace}-{args.name}"         # adamant-SkipPausingEncounters
@@ -79,6 +86,7 @@ def main():
   ─────────────────────────────────────────────
   Module name    : {args.name}
   Pack ID        : {args.pack_id}
+  Module kind    : {args.kind}
   Thunderstore   : {module_id}
   GitHub repo    : {args.org}/{repo_name}
   Local folder   : {submodule_rel}
@@ -137,15 +145,32 @@ def main():
         'https://github.com/h2-modpack/h2-modpack-TODO_ModName': website_url,
     })
 
-    # Fill PACK_ID in main.lua and main_special.lua
+    # Keep only the selected template variant and rename it to src/main.lua
+    regular_path = os.path.join(local_path, "src", "main_regular.lua")
+    special_path = os.path.join(local_path, "src", "main_special.lua")
+    main_path = os.path.join(local_path, "src", "main.lua")
+
+    chosen_path = regular_path if args.kind == "regular" else special_path
+    discarded_path = special_path if args.kind == "regular" else regular_path
+
+    if not os.path.exists(chosen_path):
+        print(f"\nERROR: expected template file missing: {chosen_path}")
+        sys.exit(1)
+
+    if os.path.exists(main_path):
+        os.remove(main_path)
+    os.replace(chosen_path, main_path)
+    if os.path.exists(discarded_path):
+        os.remove(discarded_path)
+
+    # Fill PACK_ID in src/main.lua
     pack_replacements = {
         'local PACK_ID = error("FILL: set PACK_ID to your pack id")':
             f'local PACK_ID = "{args.pack_id}"',
+        'local PACK_ID = error("TODO: set PACK_ID to your pack id")':
+            f'local PACK_ID = "{args.pack_id}"',
     }
-    for lua_file in ("main.lua", "main_special.lua"):
-        path = os.path.join(local_path, "src", lua_file)
-        if os.path.exists(path):
-            replace_in_file(path, pack_replacements)
+    replace_in_file(main_path, pack_replacements)
 
     # -------------------------------------------------------------------------
     # Wire git hooks
@@ -161,7 +186,7 @@ def main():
     # Commit filled files and push
     # -------------------------------------------------------------------------
     print("\n>>> Committing filled identity files...")
-    run(["git", "add", "thunderstore.toml", "src/main.lua", "src/main_special.lua"], cwd=local_path)
+    run(["git", "add", "thunderstore.toml", "src/main.lua", "src/main_regular.lua", "src/main_special.lua"], cwd=local_path)
 
     result = git(["diff", "--cached", "--quiet"], cwd=local_path)
     if result.returncode == 0:
@@ -188,7 +213,7 @@ def main():
   Local   : {local_path}
 
   Next steps:
-    1. Edit src/main.lua — fill in apply(), revert(), definition fields
+    1. Edit src/main.lua — fill in definition fields and module logic
     2. python Setup/deploy/deploy_all.py --overwrite
 ==========================================================
 """)
