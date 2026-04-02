@@ -1,6 +1,6 @@
 # {{WINDOW_TITLE}} Modpack
 
-Shell repo for the {{WINDOW_TITLE}} modpack. Contains all module submodules, the coordinator, and the shared Framework/Lib.
+Shell repo for the {{WINDOW_TITLE}} modpack. Contains the coordinator, shared Lib/Framework submodules, and the game-module submodules for this pack.
 
 ## Structure
 
@@ -24,9 +24,13 @@ python Setup/deploy/deploy_all.py
 
 Use the **Release All** workflow (`Actions -> Release All`) to publish a new version across all modules.
 
-## Architecture
+## Shared Docs
 
-Shared architecture docs live upstream:
+The shared architecture and authoring contract live in the upstream repos:
 
-- README: https://github.com/h2-modpack/h2-modular-modpack/blob/master/README.md
-- ARCHITECTURE: https://github.com/h2-modpack/h2-modular-modpack/blob/master/ARCHITECTURE.md
+- [ModpackFramework COORDINATOR_GUIDE.md](https://github.com/h2-modpack/ModpackFramework/blob/main/COORDINATOR_GUIDE.md)
+- [ModpackFramework HASH_PROFILE_ABI.md](https://github.com/h2-modpack/ModpackFramework/blob/main/HASH_PROFILE_ABI.md)
+- [ModpackLib MODULE_AUTHORING.md](https://github.com/h2-modpack/ModpackLib/blob/main/MODULE_AUTHORING.md)
+- [ModpackLib API.md](https://github.com/h2-modpack/ModpackLib/blob/main/API.md)
+
+This shell repo should only document pack-specific structure and composition.
