@@ -74,12 +74,12 @@ def main():
                         help="Module template kind to scaffold (default: regular)")
     args = parser.parse_args()
 
-    module_id      = f"{args.namespace}-{args.name}"         # adamant-SkipPausingEncounters
-    repo_name      = args.name                               # SkipPausingEncounters
+    module_id      = f"{args.namespace}-{args.name}"                                   # adamant-SkipPausingEncounters (Thunderstore)
+    repo_name      = f"{args.namespace}-{to_pascal(args.pack_id)}{args.name}"          # adamant-SpeedrunSkipPausingEncounters (GitHub + local)
     website_url    = f"https://github.com/{args.org}/{repo_name}"
-    local_path     = os.path.join(SUBMODULES_DIR, module_id)
-    submodule_rel  = f"Submodules/{module_id}"
-    coordinator_id = f"{args.namespace}-Modpack{to_pascal(args.pack_id)}Core"  # adamant-ModpackSpeedrunCore
+    local_path     = os.path.join(SUBMODULES_DIR, repo_name)
+    submodule_rel  = f"Submodules/{repo_name}"
+    coordinator_id = f"{args.namespace}-Modpack{to_pascal(args.pack_id)}Core"          # adamant-ModpackSpeedrunCore
 
     print(f"""
   What will be created
@@ -109,7 +109,7 @@ def main():
         "gh", "repo", "create", f"{args.org}/{repo_name}",
         "--public",
         "--template", TEMPLATE_REPO,
-        "--description", f"{args.name} module",
+        "--description", args.name,
     ])
 
     # -------------------------------------------------------------------------
