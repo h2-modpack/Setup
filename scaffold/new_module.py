@@ -16,9 +16,12 @@ Usage (run from the shell repo root):
   --kind      Module template kind     (regular or special)
 
 What will be created:
-  GitHub repo : {org}/{name}                e.g. h2pack-speedrun/SkipPausingEncounters
-  Local folder: Submodules/{ns}-{name}      e.g. Submodules/adamant-SkipPausingEncounters
-  Thunderstore: {ns}-{name}                 e.g. adamant-SkipPausingEncounters
+  GitHub repo : {org}/{ns}-{PackId}_{name}      e.g. h2pack-speedrun/adamant-Speedrun_SkipPausingEncounters
+  Local folder: Submodules/{ns}-{PackId}_{name} e.g. Submodules/adamant-Speedrun_SkipPausingEncounters
+  Thunderstore: {ns}-{PackId}_{name}             e.g. adamant-Speedrun_SkipPausingEncounters
+
+GitHub repo, local folder, and Thunderstore ID are all the same string so
+clone-then-deploy works without any manual renaming.
 
 The template repo keeps both `src/main_regular.lua` and `src/main_special.lua` as reference files.
 This scaffold selects one, renames it to `src/main.lua`, and deletes the unused variant.
@@ -72,14 +75,19 @@ def main():
     parser.add_argument("--org",       required=True,            help="GitHub org (e.g. 'h2-modpack')")
     parser.add_argument("--kind",      choices=("regular", "special"), default="regular",
                         help="Module template kind to scaffold (default: regular)")
+    parser.add_argument("--desc",      default=None,
+                        help="Short description for Thunderstore and README (optional)")
     args = parser.parse_args()
 
-    module_id      = f"{args.namespace}-{args.name}"                                   # adamant-SkipPausingEncounters (Thunderstore)
-    repo_name      = f"{args.namespace}-{to_pascal(args.pack_id)}{args.name}"          # adamant-SpeedrunSkipPausingEncounters (GitHub + local)
+    # GitHub repo, local folder, and Thunderstore ID are all the same string.
+    repo_name      = f"{args.namespace}-{to_pascal(args.pack_id)}_{args.name}"         # adamant-Speedrun_SkipPausingEncounters
     website_url    = f"https://github.com/{args.org}/{repo_name}"
     local_path     = os.path.join(SUBMODULES_DIR, repo_name)
     submodule_rel  = f"Submodules/{repo_name}"
-    coordinator_id = f"{args.namespace}-Modpack{to_pascal(args.pack_id)}Core"          # adamant-ModpackSpeedrunCore
+    coordinator_id = f"{args.namespace}-{to_pascal(args.pack_id)}_Core"                # adamant-Speedrun_Core
+    pack_title     = " ".join(w.capitalize() for w in args.pack_id.replace("-", "_").split("_"))  # "run-director" -> "Run Director"
+    shell_repo     = f"{args.pack_id}-modpack"
+    shell_url      = f"https://github.com/{args.org}/{shell_repo}"
 
     print(f"""
   What will be created
@@ -87,7 +95,7 @@ def main():
   Module name    : {args.name}
   Pack ID        : {args.pack_id}
   Module kind    : {args.kind}
-  Thunderstore   : {module_id}
+  Thunderstore   : {repo_name}
   GitHub repo    : {args.org}/{repo_name}
   Local folder   : {submodule_rel}
   ─────────────────────────────────────────────""")
@@ -96,6 +104,10 @@ def main():
     if answer != "y":
         print("  Aborted.")
         sys.exit(0)
+
+    if not args.name[0].isupper():
+        print("ERROR: --name must be PascalCase (e.g. BossRush)")
+        sys.exit(1)
 
     if os.path.exists(local_path):
         print(f"\nERROR: {local_path} already exists.")
@@ -109,7 +121,7 @@ def main():
         "gh", "repo", "create", f"{args.org}/{repo_name}",
         "--public",
         "--template", TEMPLATE_REPO,
-        "--description", args.name,
+        "--description", args.desc or args.name,
     ])
 
     # -------------------------------------------------------------------------
@@ -140,10 +152,21 @@ def main():
     toml_path = os.path.join(local_path, "thunderstore.toml")
     replace_in_file(toml_path, {
         'namespace = "adamant"':              f'namespace = "{args.namespace}"',
-        'name = "TODO_ModName"':              f'name = "{args.name}"',
-        '"TODO: Short description of the mod"': f'"TODO: description for {args.name}"',
+        'name = "TODO_ModName"':              f'name = "{to_pascal(args.pack_id)}_{args.name}"',
+        '"TODO: Short description of the mod"': f'"{args.desc or "TODO: description for " + args.name}"',
         'https://github.com/h2-modpack/h2-modpack-TODO_ModName': website_url,
     })
+
+    readme_path = os.path.join(local_path, "README.md")
+    if os.path.exists(readme_path):
+        readme_replacements = {
+            'TODO_ModName':   args.name,
+            'TODO_PackTitle': pack_title,
+            'TODO_ShellUrl':  shell_url,
+        }
+        if args.desc:
+            readme_replacements['TODO: Short description of what this mod does.'] = args.desc
+        replace_in_file(readme_path, readme_replacements)
 
     # Keep only the selected template variant and rename it to src/main.lua
     regular_path = os.path.join(local_path, "src", "main_regular.lua")
@@ -192,7 +215,7 @@ def main():
     if result.returncode == 0:
         print("  Nothing changed (template already filled?).")
     else:
-        run(["git", "commit", "-m", f"init: {module_id}"], cwd=local_path)
+        run(["git", "commit", "-m", f"init: {repo_name}"], cwd=local_path)
         run(["git", "push"], cwd=local_path)
 
     # -------------------------------------------------------------------------

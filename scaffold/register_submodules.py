@@ -105,6 +105,21 @@ def submodule_version(name):
     return data.get("package", {}).get("versionNumber", "1.0.0")
 
 
+def submodule_package_id(name):
+    """Read {namespace}-{name} from a submodule's thunderstore.toml, fall back to folder name."""
+    toml_path = os.path.join(SUBMODULES_DIR, name, "thunderstore.toml")
+    if not os.path.exists(toml_path):
+        return name
+    with open(toml_path, "rb") as f:
+        data = tomllib.load(f)
+    pkg = data.get("package", {})
+    ns  = pkg.get("namespace", "")
+    n   = pkg.get("name", "")
+    if ns and n:
+        return f"{ns}-{n}"
+    return name
+
+
 def current_submodule_names():
     """Return sorted list of submodule folder names in Submodules/."""
     names = []
@@ -133,7 +148,7 @@ def update_core_deps():
     print("  (infrastructure deps above the markers are left untouched)")
 
     names = current_submodule_names()
-    lines = [f'{name} = "{submodule_version(name)}"' for name in names]
+    lines = [f'{submodule_package_id(name)} = "{submodule_version(name)}"' for name in names]
     block = MARKER_START + "\n" + "\n".join(lines) + "\n" + MARKER_END
 
     text = open(core_toml, encoding="utf-8").read()

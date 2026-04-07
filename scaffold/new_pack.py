@@ -18,8 +18,8 @@ Naming convention:
 
   Given --pack-id "speedrun" --namespace "adamant":
     Shell repo:        speedrun-modpack
-    Coordinator ID:    adamant-ModpackSpeedrunCore
-    Coordinator repo:  speedrun-modpack-coordinator
+    Coordinator ID:    adamant-Speedrun_Core
+    Coordinator repo:  adamant-Speedrun_Core
     Lib folder:        adamant-ModpackLib
     Framework folder:  adamant-ModpackFramework
 
@@ -131,7 +131,7 @@ namespace = "{{NAMESPACE}}"
 name = "{{NAME}}"
 versionNumber = "1.0.0"
 description = "{{WINDOW_TITLE}} modpack coordinator."
-websiteUrl = "https://github.com/{{ORG}}/{{NAME}}"
+websiteUrl = "https://github.com/{{ORG}}/{{COORD_REPO}}"
 containsNsfwContent = false
 
 [package.dependencies]
@@ -196,8 +196,8 @@ def pack_id_to_pascal(pack_id):
 
 
 def pack_id_to_name(pack_id):
-    """'speedrun' -> 'ModpackSpeedrunCore'"""
-    return "Modpack" + pack_id_to_pascal(pack_id) + "Core"
+    """'speedrun' -> 'Speedrun_Core'"""
+    return pack_id_to_pascal(pack_id) + "_Core"
 
 
 def main():
@@ -214,8 +214,8 @@ def main():
 
     shell_repo       = f"{args.pack_id}-modpack"
     shell_url        = f"https://github.com/{args.org}/{shell_repo}.git"
-    coordinator_id   = f"{args.namespace}-{name}"
-    coordinator_repo = name
+    coordinator_id   = f"{args.namespace}-{name}"                          # adamant-Speedrun_Core
+    coordinator_repo = coordinator_id                                       # GitHub repo name = Thunderstore ID = local folder
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
 
     print(f"""
@@ -295,6 +295,7 @@ def main():
         NAME         = name,
         ORG          = args.org,
         SHELL_REPO   = shell_repo,
+        COORD_REPO   = coordinator_repo,
     )
     # Inline templates (Lua/TOML — tightly coupled to new_pack.py logic)
     write(os.path.join(coord_dir, "src", "main.lua"),     fill(MAIN_LUA,          **subs))
