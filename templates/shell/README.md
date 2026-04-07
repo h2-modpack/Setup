@@ -26,11 +26,9 @@ Use the **Release All** workflow (`Actions -> Release All`) to publish a new ver
 
 ## Shared Docs
 
-The shared architecture and authoring contract live in the upstream repos:
+Use the stable repo-root entrypoints for shared docs:
 
-- [ModpackFramework COORDINATOR_GUIDE.md](https://github.com/h2-modpack/ModpackFramework/blob/main/COORDINATOR_GUIDE.md)
-- [ModpackFramework HASH_PROFILE_ABI.md](https://github.com/h2-modpack/ModpackFramework/blob/main/HASH_PROFILE_ABI.md)
-- [ModpackLib MODULE_AUTHORING.md](https://github.com/h2-modpack/ModpackLib/blob/main/MODULE_AUTHORING.md)
-- [ModpackLib API.md](https://github.com/h2-modpack/ModpackLib/blob/main/API.md)
+- [ModpackFramework README.md](https://github.com/h2-modpack/adamant-ModpackFramework/blob/main/README.md)
+- [ModpackLib README.md](https://github.com/h2-modpack/adamant-ModpackLib/blob/main/README.md)
 
 This shell repo should only document pack-specific structure and composition.

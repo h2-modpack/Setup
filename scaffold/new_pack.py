@@ -42,8 +42,8 @@ from setup_common import rmtree, fill, write, run
 SETUP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR  = os.path.dirname(SETUP_DIR)
 
-LIB_URL       = "https://github.com/h2-modpack/ModpackLib.git"
-FRAMEWORK_URL = "https://github.com/h2-modpack/ModpackFramework.git"
+LIB_URL       = "https://github.com/h2-modpack/adamant-ModpackLib.git"
+FRAMEWORK_URL = "https://github.com/h2-modpack/adamant-ModpackFramework.git"
 SETUP_URL     = "https://github.com/h2-modpack/Setup.git"
 
 
