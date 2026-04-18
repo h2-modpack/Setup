@@ -6,14 +6,12 @@ identity (namespace, name, pack-id, website URL), wires git hooks,
 commits the filled files, pushes, and registers it as a submodule.
 
 Usage (run from the shell repo root):
-  python Setup/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org --kind regular
-  python Setup/new_module.py --name FirstHammer --pack-id speedrun --namespace adamant --org my-org --kind special
+  python Setup/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org
 
   --name      PascalCase module name   (e.g. SkipPausingEncounters)
   --pack-id   Pack this module belongs to (e.g. speedrun) - sets modpack field
   --namespace Thunderstore namespace   (e.g. adamant)
   --org       GitHub org               (e.g. h2-modpack)
-  --kind      Module template kind     (regular or special)
 
 What will be created:
   GitHub repo : {org}/{ns}-{PackId}_{name}      e.g. h2pack-speedrun/adamant-Speedrun_SkipPausingEncounters
@@ -22,9 +20,6 @@ What will be created:
 
 GitHub repo, local folder, and Thunderstore ID are all the same string so
 clone-then-deploy works without any manual renaming.
-
-The template repo keeps both `src/main_regular.lua` and `src/main_special.lua` as reference files.
-This scaffold selects one, renames it to `src/main.lua`, and deletes the unused variant.
 """
 
 import os
@@ -69,14 +64,11 @@ def git(args, cwd=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new module repo from template")
-    parser.add_argument("--name",      required=True,           help="PascalCase module name (e.g. SkipPausingEncounters)")
-    parser.add_argument("--pack-id",   required=True,           help="Pack this module belongs to (e.g. speedrun)")
-    parser.add_argument("--namespace", required=True,            help="Thunderstore namespace (e.g. 'adamant')")
-    parser.add_argument("--org",       required=True,            help="GitHub org (e.g. 'h2-modpack')")
-    parser.add_argument("--kind",      choices=("regular", "special"), default="regular",
-                        help="Module template kind to scaffold (default: regular)")
-    parser.add_argument("--desc",      default=None,
-                        help="Short description for Thunderstore and README (optional)")
+    parser.add_argument("--name",      required=True,  help="PascalCase module name (e.g. SkipPausingEncounters)")
+    parser.add_argument("--pack-id",   required=True,  help="Pack this module belongs to (e.g. speedrun)")
+    parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
+    parser.add_argument("--org",       required=True,  help="GitHub org (e.g. 'h2-modpack')")
+    parser.add_argument("--desc",      default=None,   help="Short description for Thunderstore and README (optional)")
     args = parser.parse_args()
 
     # GitHub repo, local folder, and Thunderstore ID are all the same string.
@@ -94,7 +86,6 @@ def main():
   ─────────────────────────────────────────────
   Module name    : {args.name}
   Pack ID        : {args.pack_id}
-  Module kind    : {args.kind}
   Thunderstore   : {repo_name}
   GitHub repo    : {args.org}/{repo_name}
   Local folder   : {submodule_rel}
@@ -168,32 +159,16 @@ def main():
             readme_replacements['TODO: Short description of what this mod does.'] = args.desc
         replace_in_file(readme_path, readme_replacements)
 
-    # Keep only the selected template variant and rename it to src/main.lua
-    regular_path = os.path.join(local_path, "src", "main_regular.lua")
-    special_path = os.path.join(local_path, "src", "main_special.lua")
+    # Fill PACK_ID in src/main.lua
     main_path = os.path.join(local_path, "src", "main.lua")
-
-    chosen_path = regular_path if args.kind == "regular" else special_path
-    discarded_path = special_path if args.kind == "regular" else regular_path
-
-    if not os.path.exists(chosen_path):
-        print(f"\nERROR: expected template file missing: {chosen_path}")
+    if not os.path.exists(main_path):
+        print(f"\nERROR: expected template file missing: {main_path}")
         sys.exit(1)
 
-    if os.path.exists(main_path):
-        os.remove(main_path)
-    os.replace(chosen_path, main_path)
-    if os.path.exists(discarded_path):
-        os.remove(discarded_path)
-
-    # Fill PACK_ID in src/main.lua
-    pack_replacements = {
-        'local PACK_ID = error("FILL: set PACK_ID to your pack id")':
-            f'local PACK_ID = "{args.pack_id}"',
+    replace_in_file(main_path, {
         'local PACK_ID = error("TODO: set PACK_ID to your pack id")':
             f'local PACK_ID = "{args.pack_id}"',
-    }
-    replace_in_file(main_path, pack_replacements)
+    })
 
     # -------------------------------------------------------------------------
     # Wire git hooks
@@ -209,7 +184,7 @@ def main():
     # Commit filled files and push
     # -------------------------------------------------------------------------
     print("\n>>> Committing filled identity files...")
-    run(["git", "add", "thunderstore.toml", "src/main.lua", "src/main_regular.lua", "src/main_special.lua"], cwd=local_path)
+    run(["git", "add", "thunderstore.toml", "README.md", "src/main.lua"], cwd=local_path)
 
     result = git(["diff", "--cached", "--quiet"], cwd=local_path)
     if result.returncode == 0:

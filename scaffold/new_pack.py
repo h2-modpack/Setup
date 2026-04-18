@@ -52,54 +52,6 @@ SETUP_URL     = "https://github.com/h2-modpack/Setup.git"
 # =============================================================================
 # Use {{PLACEHOLDER}} markers — simple .replace(), no f-string conflicts with Lua.
 
-MAIN_LUA = """\
--- =============================================================================
--- {{COORD_ID}}: Modpack Coordinator
--- =============================================================================
--- Thin coordinator: wires globals, owns config and def, delegates everything
--- else to adamant-ModpackFramework.
-
-local mods = rom.mods
-mods['SGG_Modding-ENVY'].auto()
-
----@diagnostic disable: lowercase-global
-rom = rom
-_PLUGIN = _PLUGIN
-game = rom.game
-modutil = mods['SGG_Modding-ModUtil']
-local chalk   = mods['SGG_Modding-Chalk']
-local reload  = mods['SGG_Modding-ReLoad']
-
-local config = chalk.auto('config.lua')
-
-local def = {
-    NUM_PROFILES    = #config.Profiles,
-    defaultProfiles = {},
-}
-
-local PACK_ID = "{{PACK_ID}}"
-
-local function init()
-    local Framework = mods['adamant-ModpackFramework']
-    Framework.init({
-        packId      = PACK_ID,
-        windowTitle = "{{WINDOW_TITLE}}",
-        config      = config,
-        def         = def,
-        modutil     = modutil,
-    })
-end
-
-local loader = reload.auto_single()
-modutil.once_loaded.game(function()
-    local Framework = mods['adamant-ModpackFramework']
-    rom.gui.add_imgui(Framework.getRenderer(PACK_ID))
-    rom.gui.add_always_draw_imgui(Framework.getAlwaysDrawRenderer(PACK_ID))
-    rom.gui.add_to_menu_bar(Framework.getMenuBar(PACK_ID))
-    loader.load(init, init)
-end)
-"""
-
 CONFIG_LUA = """\
 ---@meta {{NAMESPACE}}-config-{{NAME}}
 return {
@@ -298,13 +250,10 @@ def main():
         SHELL_REPO   = shell_repo,
         COORD_REPO   = coordinator_repo,
     )
-    # Inline templates (Lua/TOML — tightly coupled to new_pack.py logic)
-    write(os.path.join(coord_dir, "src", "main.lua"),     fill(MAIN_LUA,          **subs))
     write(os.path.join(coord_dir, "src", "config.lua"),   fill(CONFIG_LUA,        **subs))
     write(os.path.join(coord_dir, "thunderstore.toml"),   fill(THUNDERSTORE_TOML, **subs))
     write(os.path.join(coord_dir, "CHANGELOG.md"),        CHANGELOG_MD)
 
-    # File templates from Setup/templates/coordinator/ — fill() is a no-op on files without placeholders
     templates_dir = os.path.join(SETUP_DIR, "templates", "coordinator")
     for dirpath, _, filenames in os.walk(templates_dir):
         for filename in filenames:
