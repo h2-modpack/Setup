@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   update:
@@ -16,19 +17,85 @@ jobs:
         uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f
         with:
           submodules: true
-          token: ${{ secrets.SUBMODULE_UPDATE_TOKEN }}
+          token: ${{ secrets.SUBMODULE_UPDATE_TOKEN || github.token }}
 
       - name: Update all submodules to latest
         run: git submodule update --remote
 
-      - name: Commit and push if changed
+      - name: Check for submodule pointer changes
+        id: changes
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "All submodule pointers are up to date."
           else
-            git add -A
-            git commit -m "update submodule pointers"
-            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Lua validation runtime
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.2 liblua5.2-dev luarocks
+          sudo luarocks --lua-version=5.2 install luaunit
+          sudo luarocks --lua-version=5.2 install luacheck
+
+      - name: Run ModpackLib tests
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: adamant-ModpackLib
+        run: lua5.2 tests/all.lua
+
+      - name: Run ModpackFramework tests
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: adamant-ModpackFramework
+        run: lua5.2 tests/all.lua
+
+      - name: Validate coordinator sources
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          luacheck {{COORD_ID}}/src/
+          find {{COORD_ID}}/src -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac5.2 -p
+
+      - name: Validate module sources
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          for repo in Submodules/{{NAMESPACE}}-*; do
+            if [ ! -d "$repo/src" ]; then
+              continue
+            fi
+
+            echo "=== Validating $repo ==="
+            luacheck "$repo/src/"
+            find "$repo/src" -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac5.2 -p
+
+            if [ -f "$repo/tests/all.lua" ]; then
+              echo "--- Running tests for $repo ---"
+              (
+                cd "$repo"
+                lua5.2 tests/all.lua
+              )
+            fi
+          done
+
+      - name: Open or update pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.SUBMODULE_UPDATE_TOKEN || github.token }}
+        run: |
+          BRANCH="automation/update-submodules"
+          TITLE="Update submodule pointers"
+          BODY="Automated submodule pointer update. Pack-wide Lua validation passed before this PR was opened."
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          git add -A
+          git commit -m "update submodule pointers"
+          git push --force-with-lease origin "$BRANCH"
+
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            gh pr edit "$BRANCH" --title "$TITLE" --body "$BODY"
+          else
+            gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "$BODY"
           fi

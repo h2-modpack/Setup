@@ -18,8 +18,6 @@ local reload = mods['SGG_Modding-ReLoad']
 ---@diagnostic disable-next-line: redundant-parameter
 local config = chalk.auto('config.lua')
 
-local Framework = mods['adamant-ModpackFramework']
-
 local def = {
     NUM_PROFILES    = #config.Profiles,
     defaultProfiles = {},
@@ -28,19 +26,26 @@ local def = {
 local PACK_ID = "{{PACK_ID}}"
 
 local function init()
+    local Framework = rom.mods["adamant-ModpackFramework"]
+    assert(Framework and type(Framework.init) == "function",
+        "{{COORD_ID}}: adamant-ModpackFramework is not loaded")
+
     Framework.init({
         packId      = PACK_ID,
         windowTitle = "{{WINDOW_TITLE}}",
         config      = config,
         def         = def,
-        modutil     = modutil,
     })
 end
 
 local loader = reload.auto_single()
 modutil.once_loaded.game(function()
+    local Framework = rom.mods["adamant-ModpackFramework"]
+    assert(Framework and type(Framework.getRenderer) == "function",
+        "{{COORD_ID}}: adamant-ModpackFramework is not loaded")
+
     rom.gui.add_imgui(Framework.getRenderer(PACK_ID))
     rom.gui.add_always_draw_imgui(Framework.getAlwaysDrawRenderer(PACK_ID))
     rom.gui.add_to_menu_bar(Framework.getMenuBar(PACK_ID))
-    loader.load(init)
+    loader.load(nil, init)
 end)

@@ -5,7 +5,7 @@ Creates the coordinator GitHub repo automatically via the gh CLI.
 Clone Setup next to where you want the new pack, then run:
 
   git clone https://github.com/h2-modpack/Setup.git
-  python Setup/new_pack.py --pack-id "speedrun" --namespace mynamespace --org my-org
+  python Setup/scaffold/new_pack.py --pack-id "speedrun" --namespace mynamespace --org my-org
 
 The shell repo is created as a sibling of the Setup folder:
   ../speedrun-modpack/
@@ -357,11 +357,11 @@ def main():
 
   Next steps:
     cd {output}
-    python Setup/deploy_all.py --overwrite
+    python Setup/deploy/deploy_all.py --overwrite
 
   To add game submodules:
     git submodule add --branch main <url> Submodules/<name>
-    python Setup/deploy_all.py --overwrite
+    python Setup/deploy/deploy_all.py --overwrite
 ==========================================================
 """)
 

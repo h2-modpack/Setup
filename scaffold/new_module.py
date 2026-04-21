@@ -6,7 +6,7 @@ identity (namespace, name, pack-id, website URL), wires git hooks,
 commits the filled files, pushes, and registers it as a submodule.
 
 Usage (run from the shell repo root):
-  python Setup/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org
+  python Setup/scaffold/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org
 
   --name      PascalCase module name   (e.g. SkipPausingEncounters)
   --pack-id   Pack this module belongs to (e.g. speedrun) - sets modpack field
@@ -27,7 +27,7 @@ import sys
 import time
 import argparse
 import subprocess
-from setup_common import run, rmtree
+from setup_common import run
 
 
 SETUP_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -76,7 +76,6 @@ def main():
     website_url    = f"https://github.com/{args.org}/{repo_name}"
     local_path     = os.path.join(SUBMODULES_DIR, repo_name)
     submodule_rel  = f"Submodules/{repo_name}"
-    coordinator_id = f"{args.namespace}-{to_pascal(args.pack_id)}_Core"                # adamant-Speedrun_Core
     pack_title     = " ".join(w.capitalize() for w in args.pack_id.replace("-", "_").split("_"))  # "run-director" -> "Run Director"
     shell_repo     = f"{args.pack_id}-modpack"
     shell_url      = f"https://github.com/{args.org}/{shell_repo}"

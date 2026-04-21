@@ -37,6 +37,22 @@ jobs:
         with:
           lfs: true
 
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.2"
+
+      - name: Setup Luarocks
+        uses: leafo/gh-actions-luarocks@v4
+
+      - name: Install Luacheck
+        run: luarocks install luacheck
+
+      - name: Validate package sources
+        run: |
+          luacheck src/
+          find src -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac -p
+
       - name: Rotate unreleased section in changelog
         uses: thomaseizinger/keep-a-changelog-new-release@77ac767b2f7f6edf2ee72ab3364ed26667086f96
         with:
