@@ -53,14 +53,19 @@ jobs:
           ORG="{{ORG}}"
 
           REGISTRY_MODULES=$(gh api repos/$ORG/{{SHELL_REPO}}/contents/Submodules \
-            --jq '.[].name' | grep '^{{NAMESPACE}}-' | sed 's/^{{NAMESPACE}}-/{{ORG}}-/')
+            --jq '.[].name' | grep '^{{NAMESPACE}}-')
 
-          mapfile -t ALL_REPOS <<< "$(printf '{{NAME}}\n%s' "$REGISTRY_MODULES")"
+          mapfile -t ALL_REPOS <<< "$(printf '{{NAMESPACE}}-{{NAME}}\n%s' "$REGISTRY_MODULES")"
 
           if [ -n "$FILTER" ]; then
             IFS=',' read -ra REPOS <<< "$FILTER"
             for i in "${!REPOS[@]}"; do
               REPOS[$i]=$(echo "${REPOS[$i]}" | xargs)
+              if [ "${REPOS[$i]}" = "{{NAME}}" ] || [ "${REPOS[$i]}" = "{{NAMESPACE}}-{{NAME}}" ]; then
+                REPOS[$i]="{{NAMESPACE}}-{{NAME}}"
+              elif [[ "${REPOS[$i]}" != {{NAMESPACE}}-* ]]; then
+                REPOS[$i]="{{NAMESPACE}}-${REPOS[$i]}"
+              fi
             done
           else
             REPOS=("${ALL_REPOS[@]}")

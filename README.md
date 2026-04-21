@@ -22,6 +22,7 @@ This repo lives at `Setup/` as a submodule in every shell repo it manages.
 | `deploy_manifests.py` | Generate `manifest.json` for every mod (reads `thunderstore.toml`) |
 | `deploy_links.py` | Create r2modman profile symlinks for every mod |
 | `deploy_hooks.py` | Configure `.githooks` paths for every mod repo |
+| `deploy_secrets.py` | Set a GitHub Actions secret across the coordinator repo and all `Submodules/*` repos |
 | `deploy_common.py` | Shared utilities: mod discovery, profile path resolution, arg parser |
 | `generate_manifest.py` | Generate manifest for a single mod |
 
@@ -84,6 +85,42 @@ python Setup/deploy/deploy_all.py          # first time
 python Setup/deploy/deploy_all.py --overwrite   # force refresh
 ./Setup/lin.sh                             # shorthand on Linux
 ```
+
+### Configure release secrets across a pack
+
+To set `TCLI_AUTH_TOKEN` on the coordinator repo and every game submodule repo in one pass:
+
+```bash
+export TCLI_AUTH_TOKEN=your-token-here
+python Setup/deploy/deploy_secrets.py
+```
+
+Windows PowerShell:
+
+```powershell
+$env:TCLI_AUTH_TOKEN = "your-token-here"
+python Setup/deploy/deploy_secrets.py
+```
+
+Notes:
+
+- By default this targets the coordinator repo plus every `Submodules/*` repo.
+- Lib and Framework are excluded by default. Add `--include-lib-framework` if you also want release secrets there.
+- The shell repo's cross-repo release workflow uses a different secret: `RELEASE_DISPATCH_TOKEN`.
+- If you do not want to put the token in an environment variable, omit it and the script will prompt securely.
+
+To set both the release token and the shell repo's dispatch token in one run:
+
+```powershell
+$env:TCLI_AUTH_TOKEN = "your-thunderstore-token"
+$env:RELEASE_DISPATCH_TOKEN = "your-github-dispatch-token"
+python Setup/deploy/deploy_secrets.py --include-shell
+```
+
+This will:
+
+- set `TCLI_AUTH_TOKEN` on the coordinator repo and every `Submodules/*` repo
+- set `RELEASE_DISPATCH_TOKEN` on the shell repo itself
 
 ### Adopt existing repos as submodules
 
