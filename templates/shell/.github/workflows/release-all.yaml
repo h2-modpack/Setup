@@ -69,8 +69,11 @@ jobs:
 
       - name: Validate coordinator sources
         run: |
-          luacheck {{COORD_ID}}/src/
-          find {{COORD_ID}}/src -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac5.2 -p
+          (
+            cd {{COORD_ID}}
+            luacheck src/
+            find src -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac5.2 -p
+          )
 
       - name: Validate module sources
         run: |
@@ -80,16 +83,16 @@ jobs:
             fi
 
             echo "=== Validating $repo ==="
-            luacheck "$repo/src/"
-            find "$repo/src" -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac5.2 -p
+            (
+              cd "$repo"
+              luacheck src/
+              find src -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac5.2 -p
 
-            if [ -f "$repo/tests/all.lua" ]; then
-              echo "--- Running tests for $repo ---"
-              (
-                cd "$repo"
+              if [ -f tests/all.lua ]; then
+                echo "--- Running tests for $repo ---"
                 lua5.2 tests/all.lua
-              )
-            fi
+              fi
+            )
           done
 
       - name: Trigger release workflows
