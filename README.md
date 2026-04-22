@@ -12,7 +12,6 @@ Setup is the shared toolbelt for a pack workspace:
 - deploy local assets, manifests, profile links, and git hooks
 - register or prune submodule entries
 - optionally configure GitHub Actions secrets
-- migrate packs between GitHub orgs
 
 The shell's submodule update workflow needs a pack org secret named `SUBMODULE_UPDATE_TOKEN` once you want GitHub Actions to open pointer-update PRs.
 
@@ -81,11 +80,11 @@ Before publishing releases, also add these GitHub Actions org secrets with **All
 
 The GitHub PAT value for `RELEASE_DISPATCH_TOKEN` is still created manually in GitHub user settings. Setup can store or link existing secret values, but it does not mint new PATs.
 
-With All repositories access, every current and future repo in the pack org can read the secrets. The shell, coordinator, and module repos are covered automatically, so the normal path does not need `deploy_secrets.py --link-org-secrets`.
+With All repositories access, every current and future repo in the pack org can read the secrets. The shell, coordinator, and module repos are covered automatically, so the normal path does not need `github/deploy_secrets.py --link-org-secrets`.
 
 ## Alternative Secret Deployment
 
-Use `deploy_secrets.py` only for tighter selected-repository access or repo-level secret fallback.
+Use `github/deploy_secrets.py` only for tighter selected-repository access or repo-level secret fallback.
 
 For selected-repository org secrets, create the org secrets first:
 
@@ -96,8 +95,8 @@ For selected-repository org secrets, create the org secrets first:
 Then link them to this pack's repos:
 
 ```bash
-python Setup/deploy/deploy_secrets.py --link-org-secrets --dry-run
-python Setup/deploy/deploy_secrets.py --link-org-secrets
+python Setup/github/deploy_secrets.py --link-org-secrets --dry-run
+python Setup/github/deploy_secrets.py --link-org-secrets
 ```
 
 This links `TCLI_AUTH_TOKEN` to the coordinator and every `Submodules/*` repo, and links `SUBMODULE_UPDATE_TOKEN` plus `RELEASE_DISPATCH_TOKEN` to the shell repo.
@@ -108,7 +107,7 @@ Fallback repo-level setup is also available:
 
 ```powershell
 $env:TCLI_AUTH_TOKEN = "your-thunderstore-token"
-python Setup/deploy/deploy_secrets.py
+python Setup/github/deploy_secrets.py
 ```
 
 To also set shell workflow secrets directly on the shell repo:
@@ -117,7 +116,7 @@ To also set shell workflow secrets directly on the shell repo:
 $env:TCLI_AUTH_TOKEN = "your-thunderstore-token"
 $env:SUBMODULE_UPDATE_TOKEN = "your-github-pr-token"
 $env:RELEASE_DISPATCH_TOKEN = "your-github-dispatch-token"
-python Setup/deploy/deploy_secrets.py --include-shell
+python Setup/github/deploy_secrets.py --include-shell
 ```
 
 If token values are not supplied through environment variables, the script prompts securely.
@@ -144,25 +143,6 @@ python Setup/commit_submodules.py "fix: update config schema"
 
 Clean module repos are skipped.
 
-## Move A Pack To Another Org
-
-Transfer all repos, then re-wire the new shell to point at them:
-
-```bash
-# 1. Transfer repos on GitHub and produce repos.txt
-cd old-shell
-python Setup/migrate/transfer_repos.py --from-org old-org --to-org new-org
-
-# 2. Add them to the new shell
-cd ../new-shell
-python Setup/migrate/bulk_add.py --repos ../old-shell/repos.txt
-python Setup/deploy/deploy_all.py --overwrite
-
-# 3. Optional: update the old shell to point at the new org instead of removing it
-cd ../old-shell
-python Setup/migrate/rewire.py --from-org old-org --to-org new-org
-```
-
 ## File Reference
 
 Entry points:
@@ -182,9 +162,14 @@ Deployment helpers:
 | `deploy/deploy_manifests.py` | Generate `manifest.json` for every mod from `thunderstore.toml` |
 | `deploy/deploy_links.py` | Create r2modman profile symlinks for every mod |
 | `deploy/deploy_hooks.py` | Configure `.githooks` paths for every mod repo |
-| `deploy/deploy_secrets.py` | Optional helper for org-secret linking or repo-level GitHub Actions secrets |
 | `deploy/deploy_common.py` | Shared deploy utilities |
 | `deploy/generate_manifest.py` | Generate a manifest for a single mod |
+
+GitHub automation helpers:
+
+| File | Description |
+|---|---|
+| `github/deploy_secrets.py` | Optional helper for org-secret linking or repo-level GitHub Actions secrets |
 
 Scaffolding helpers:
 
@@ -194,14 +179,6 @@ Scaffolding helpers:
 | `scaffold/new_module.py` | Scaffold a module repo from the template and register it as a submodule |
 | `scaffold/register_submodules.py` | Register or prune `Submodules/` entries in `.gitmodules` |
 | `scaffold/setup_common.py` | Shared scaffold utilities |
-
-Migration helpers:
-
-| File | Description |
-|---|---|
-| `migrate/transfer_repos.py` | Transfer repos between GitHub orgs and write `repos.txt` |
-| `migrate/bulk_add.py` | Add submodules in bulk from `repos.txt` |
-| `migrate/rewire.py` | Update submodule remotes after an org move |
 
 Templates:
 

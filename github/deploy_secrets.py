@@ -4,12 +4,12 @@ Configure GitHub Actions secrets for a modpack's GitHub repos.
 Preferred mode links existing org-level selected secrets to the shell,
 coordinator/core, and Submodules/* repos:
 
-  python Setup/deploy/deploy_secrets.py --link-org-secrets
+  python Setup/github/deploy_secrets.py --link-org-secrets
 
 Fallback mode sets repo-level secrets by value. By default it sets
 TCLI_AUTH_TOKEN on the coordinator/core repo and every Submodules/* repo:
 
-  python Setup/deploy/deploy_secrets.py
+  python Setup/github/deploy_secrets.py
 """
 
 import argparse
@@ -19,7 +19,10 @@ import re
 import subprocess
 import sys
 
-from deploy_common import ROOT_DIR
+
+GITHUB_DIR = os.path.dirname(os.path.abspath(__file__))
+SETUP_DIR = os.path.dirname(GITHUB_DIR)
+ROOT_DIR = os.path.dirname(SETUP_DIR)
 
 
 DEFAULT_PACKAGE_SECRET_NAME = "TCLI_AUTH_TOKEN"
