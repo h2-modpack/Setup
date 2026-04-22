@@ -43,6 +43,15 @@ jobs:
             fi
           fi
 
+      - name: Check release dispatch token
+        env:
+          RELEASE_DISPATCH_TOKEN: ${{ secrets.RELEASE_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_DISPATCH_TOKEN" ]; then
+            echo "::error title=Missing RELEASE_DISPATCH_TOKEN::Set a repository or organization secret named RELEASE_DISPATCH_TOKEN using a fine-grained PAT or GitHub App token with Contents: read and Actions: read/write access to the shell, core, and module repositories."
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f
         with:
