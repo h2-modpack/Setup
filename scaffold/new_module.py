@@ -27,6 +27,9 @@ import sys
 import time
 import argparse
 import subprocess
+import re
+import tomllib
+from register_submodules import update_core_deps
 from setup_common import run
 
 
@@ -54,8 +57,32 @@ def replace_in_file(path, replacements):
         f.write(content)
 
 
+def replace_dependency_version(path, dependency, version):
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    pattern = rf'^({re.escape(dependency)}\s*=\s*)".*"$'
+    replacement = rf'\1"{version}"'
+    updated, count = re.subn(pattern, replacement, content, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise RuntimeError(f"Could not find dependency {dependency} in {path}")
+
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(updated)
+
+
 def git(args, cwd=None):
     return subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
+
+
+def read_package_version(toml_path):
+    """Read package.versionNumber from a Thunderstore config."""
+    with open(toml_path, "rb") as f:
+        data = tomllib.load(f)
+    version = data.get("package", {}).get("versionNumber")
+    if not version:
+        raise RuntimeError(f"Missing package.versionNumber in {toml_path}")
+    return version
 
 
 # =============================================================================
@@ -79,6 +106,7 @@ def main():
     pack_title     = " ".join(w.capitalize() for w in args.pack_id.replace("-", "_").split("_"))  # "run-director" -> "Run Director"
     shell_repo     = f"{args.pack_id}-modpack"
     shell_url      = f"https://github.com/{args.org}/{shell_repo}"
+    lib_version    = read_package_version(os.path.join(ROOT_DIR, "adamant-ModpackLib", "thunderstore.toml"))
 
     print(f"""
   What will be created
@@ -146,6 +174,7 @@ def main():
         '"TODO: Short description of the mod"': f'"{args.desc or "TODO: description for " + args.name}"',
         'https://github.com/h2-modpack/h2-modpack-TODO_ModName': website_url,
     })
+    replace_dependency_version(toml_path, "adamant-ModpackLib", lib_version)
 
     readme_path = os.path.join(local_path, "README.md")
     if os.path.exists(readme_path):
@@ -202,6 +231,9 @@ def main():
         clone_url, submodule_rel,
     ], cwd=ROOT_DIR)
 
+    print("\n>>> Syncing Core module dependency block...")
+    update_core_deps()
+
     print(f"""
 ==========================================================
   Done!
@@ -211,7 +243,8 @@ def main():
 
   Next steps:
     1. Edit src/main.lua — fill in definition fields and module logic
-    2. python Setup/deploy/deploy_all.py --overwrite
+    2. Review the synced Core thunderstore.toml dependency block
+    3. python Setup/deploy/deploy_all.py --overwrite
 ==========================================================
 """)
 

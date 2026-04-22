@@ -32,6 +32,10 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Validate platform dependency versions
+        if: steps.changes.outputs.changed == 'true'
+        run: python3 Setup/validate_platform_versions.py
+
       - name: Install Lua validation runtime
         if: steps.changes.outputs.changed == 'true'
         run: |

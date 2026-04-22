@@ -36,6 +36,7 @@ import sys
 import shutil
 import argparse
 import json
+import tomllib
 from setup_common import rmtree, fill, write, run
 
 
@@ -93,8 +94,8 @@ LuaENVY-ENVY = "1.2.0"
 SGG_Modding-Chalk = "2.1.1"
 SGG_Modding-ReLoad = "1.0.2"
 SGG_Modding-ModUtil = "4.0.1"
-adamant-ModpackLib = "1.0.0"
-adamant-ModpackFramework = "1.0.0"
+adamant-ModpackLib = "{{LIB_VERSION}}"
+adamant-ModpackFramework = "{{FRAMEWORK_VERSION}}"
 
 # -- submodules-start --
 
@@ -151,6 +152,16 @@ def pack_id_to_pascal(pack_id):
 def pack_id_to_name(pack_id):
     """'speedrun' -> 'Speedrun_Core'"""
     return pack_id_to_pascal(pack_id) + "_Core"
+
+
+def read_package_version(toml_path):
+    """Read package.versionNumber from a Thunderstore config."""
+    with open(toml_path, "rb") as f:
+        data = tomllib.load(f)
+    version = data.get("package", {}).get("versionNumber")
+    if not version:
+        raise RuntimeError(f"Missing package.versionNumber in {toml_path}")
+    return version
 
 
 def main():
@@ -225,6 +236,9 @@ def main():
     print("\n>>> Adding Framework submodule...")
     run(["git", "submodule", "add", "--branch", "main", FRAMEWORK_URL, "adamant-ModpackFramework"], cwd=output)
 
+    lib_version = read_package_version(os.path.join(output, "adamant-ModpackLib", "thunderstore.toml"))
+    framework_version = read_package_version(os.path.join(output, "adamant-ModpackFramework", "thunderstore.toml"))
+
     # -------------------------------------------------------------------------
     # Coordinator — generate files, push to new GitHub repo, then add as submodule
     # -------------------------------------------------------------------------
@@ -243,12 +257,15 @@ def main():
     subs = dict(
         COORD_ID     = coordinator_id,
         PACK_ID      = args.pack_id,
+        PACK_PASCAL  = pack_id_to_pascal(args.pack_id),
         WINDOW_TITLE = title,
         NAMESPACE    = args.namespace,
         NAME         = name,
         ORG          = args.org,
         SHELL_REPO   = shell_repo,
         COORD_REPO   = coordinator_repo,
+        LIB_VERSION  = lib_version,
+        FRAMEWORK_VERSION = framework_version,
     )
     write(os.path.join(coord_dir, "src", "config.lua"),   fill(CONFIG_LUA,        **subs))
     write(os.path.join(coord_dir, "thunderstore.toml"),   fill(THUNDERSTORE_TOML, **subs))
@@ -280,8 +297,8 @@ def main():
             "SGG_Modding-Chalk-2.1.1",
             "SGG_Modding-ReLoad-1.0.2",
             "SGG_Modding-ModUtil-4.0.1",
-            "adamant-ModpackLib-1.0.0",
-            "adamant-ModpackFramework-1.0.0",
+            f"adamant-ModpackLib-{lib_version}",
+            f"adamant-ModpackFramework-{framework_version}",
         ],
         "website_url": f"https://github.com/{args.org}/{coordinator_repo}",
         "FullName": coordinator_id,
