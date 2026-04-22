@@ -381,6 +381,7 @@ def main():
   Next steps:
     cd {output}
     python Setup/deploy/deploy_all.py --overwrite
+    python Setup/deploy/deploy_secrets.py --link-org-secrets
 
   To add game submodules:
     git submodule add --branch main <url> Submodules/<name>

@@ -87,39 +87,43 @@ python Setup/deploy/deploy_all.py --overwrite   # force refresh
 
 ### Configure release secrets across a pack
 
-To set `TCLI_AUTH_TOKEN` on the coordinator repo and every game submodule repo in one pass:
+Preferred one-org-per-pack setup: create these org-level secrets once, with selected-repository visibility:
+
+- `TCLI_AUTH_TOKEN`
+- `SUBMODULE_UPDATE_TOKEN`
+- `RELEASE_DISPATCH_TOKEN`
+
+Then link them to this pack's repos:
 
 ```bash
-export TCLI_AUTH_TOKEN=your-token-here
-python Setup/deploy/deploy_secrets.py
+python Setup/deploy/deploy_secrets.py --link-org-secrets --dry-run
+python Setup/deploy/deploy_secrets.py --link-org-secrets
 ```
 
-Windows PowerShell:
+This links:
 
-```powershell
-$env:TCLI_AUTH_TOKEN = "your-token-here"
-python Setup/deploy/deploy_secrets.py
-```
+- `TCLI_AUTH_TOKEN` to the coordinator repo and every `Submodules/*` repo
+- `SUBMODULE_UPDATE_TOKEN` and `RELEASE_DISPATCH_TOKEN` to the shell repo
 
-Notes:
+Lib and Framework are excluded by default because they live in the shared `h2-modpack` org. Add `--include-lib-framework` only when intentionally managing those repos from this shell.
 
-- By default this targets the coordinator repo plus every `Submodules/*` repo.
-- Lib and Framework are excluded by default. Add `--include-lib-framework` if you also want release secrets there.
-- The shell repo's cross-repo release workflow uses a different secret: `RELEASE_DISPATCH_TOKEN`.
-- If you do not want to put the token in an environment variable, omit it and the script will prompt securely.
-
-To set both the release token and the shell repo's dispatch token in one run:
+Fallback repo-level setup is still available. To set `TCLI_AUTH_TOKEN` directly on the coordinator and every game submodule repo:
 
 ```powershell
 $env:TCLI_AUTH_TOKEN = "your-thunderstore-token"
+python Setup/deploy/deploy_secrets.py
+```
+
+To also set shell workflow secrets directly on the shell repo:
+
+```powershell
+$env:TCLI_AUTH_TOKEN = "your-thunderstore-token"
+$env:SUBMODULE_UPDATE_TOKEN = "your-github-pr-token"
 $env:RELEASE_DISPATCH_TOKEN = "your-github-dispatch-token"
 python Setup/deploy/deploy_secrets.py --include-shell
 ```
 
-This will:
-
-- set `TCLI_AUTH_TOKEN` on the coordinator repo and every `Submodules/*` repo
-- set `RELEASE_DISPATCH_TOKEN` on the shell repo itself
+If you do not want to put token values in environment variables, omit them and the script will prompt securely.
 
 ### Adopt existing repos as submodules
 
