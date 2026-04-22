@@ -32,6 +32,16 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check pull request automation token
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          SUBMODULE_UPDATE_TOKEN: ${{ secrets.SUBMODULE_UPDATE_TOKEN }}
+        run: |
+          if [ -z "$SUBMODULE_UPDATE_TOKEN" ]; then
+            echo "::error title=Missing SUBMODULE_UPDATE_TOKEN::Set a repository or organization secret named SUBMODULE_UPDATE_TOKEN using a fine-grained PAT or GitHub App token with Contents: read/write and Pull requests: read/write permissions."
+            exit 1
+          fi
+
       - name: Validate platform dependency versions
         if: steps.changes.outputs.changed == 'true'
         run: python3 Setup/validate_platform_versions.py
@@ -87,7 +97,7 @@ jobs:
       - name: Open or update pull request
         if: steps.changes.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.SUBMODULE_UPDATE_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.SUBMODULE_UPDATE_TOKEN }}
         run: |
           BRANCH="automation/update-submodules"
           TITLE="Update submodule pointers"
@@ -104,5 +114,8 @@ jobs:
           if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
             gh pr edit "$BRANCH" --title "$TITLE" --body "$BODY"
           else
-            gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "$BODY"
+            if ! gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "$BODY"; then
+              echo "::error title=Pull request creation failed::SUBMODULE_UPDATE_TOKEN must be a fine-grained PAT or GitHub App token with Contents: read/write and Pull requests: read/write access to this repository."
+              exit 1
+            fi
           fi
