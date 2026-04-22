@@ -381,7 +381,12 @@ def main():
   Next steps:
     cd {output}
     python Setup/deploy/deploy_all.py --overwrite
-    python Setup/deploy/deploy_secrets.py --link-org-secrets
+
+    Before running release automation, create these org Actions secrets
+    with All repositories access:
+      TCLI_AUTH_TOKEN
+      SUBMODULE_UPDATE_TOKEN
+      RELEASE_DISPATCH_TOKEN
 
   To add game submodules:
     git submodule add --branch main <url> Submodules/<name>

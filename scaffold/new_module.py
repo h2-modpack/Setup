@@ -245,7 +245,7 @@ def main():
     1. Edit src/main.lua — fill in definition fields and module logic
     2. Review the synced Core thunderstore.toml dependency block
     3. python Setup/deploy/deploy_all.py --overwrite
-    4. python Setup/deploy/deploy_secrets.py --link-org-secrets
+    4. No secret update is needed if pack org secrets use All repositories access
 ==========================================================
 """)
 
