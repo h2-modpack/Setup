@@ -106,10 +106,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          git fetch origin "$BRANCH" || true
+          EXPECTED_REMOTE_SHA=$(git rev-parse --verify "refs/remotes/origin/$BRANCH" 2>/dev/null || true)
+
           git checkout -B "$BRANCH"
           git add -A
           git commit -m "update submodule pointers"
-          git push --force-with-lease origin "$BRANCH"
+          if [ -n "$EXPECTED_REMOTE_SHA" ]; then
+            git push --force-with-lease="refs/heads/$BRANCH:$EXPECTED_REMOTE_SHA" origin "$BRANCH"
+          else
+            git push origin "$BRANCH"
+          fi
 
           if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
             gh pr edit "$BRANCH" --title "$TITLE" --body "$BODY"
