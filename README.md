@@ -170,6 +170,8 @@ GitHub automation helpers:
 | File | Description |
 |---|---|
 | `github/deploy_secrets.py` | Optional helper for org-secret linking or repo-level GitHub Actions secrets |
+| `github/release_all.py` | Shared pack-wide release dispatcher used by shell `Release All` workflows |
+| `tests/test_release_all.py` | Dry-run planner tests for release target normalization and version gating |
 
 Scaffolding helpers:
 

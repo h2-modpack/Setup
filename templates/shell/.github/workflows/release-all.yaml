@@ -19,30 +19,6 @@ jobs:
     name: Trigger releases
     runs-on: ubuntu-latest
     steps:
-      - name: Check input tag format
-        env:
-          TAG: ${{ inputs.tag }}
-          FILTER: ${{ inputs.modules }}
-        run: |
-          if ! echo "$TAG" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error title=Invalid package version number::Version numbers must follow the Major.Minor.Patch format (e.g. 1.45.320)."
-            exit 1
-          fi
-
-          PATCH_VERSION=$(echo "$TAG" | cut -d. -f3)
-
-          if [ -z "$FILTER" ]; then
-            if [ "$PATCH_VERSION" != "0" ]; then
-              echo "::error title=Invalid Mass Release Version::Mass releases (all modules) must end in .0 (e.g., 1.2.0) to reserve patch numbers for hotfixes."
-              exit 1
-            fi
-          else
-            if [ "$PATCH_VERSION" == "0" ]; then
-              echo "::error title=Invalid Hotfix Version::Targeted hotfixes must use a patch version greater than .0 (e.g., 1.2.1)."
-              exit 1
-            fi
-          fi
-
       - name: Check release dispatch token
         env:
           RELEASE_DISPATCH_TOKEN: ${{ secrets.RELEASE_DISPATCH_TOKEN }}
@@ -57,6 +33,22 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.RELEASE_DISPATCH_TOKEN }}
+
+      - name: Validate release plan
+        env:
+          TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.is-dry-run }}
+          FILTER: ${{ inputs.modules }}
+        run: |
+          python3 Setup/github/release_all.py \
+            --org "{{ORG}}" \
+            --namespace "{{NAMESPACE}}" \
+            --pack-pascal "{{PACK_PASCAL}}" \
+            --core-repo "{{COORD_ID}}" \
+            --tag "$TAG" \
+            --child-dry-run "$DRY_RUN" \
+            --targets "$FILTER" \
+            --plan-only
 
       - name: Validate platform dependency versions
         run: python3 Setup/validate_platform_versions.py
@@ -86,7 +78,7 @@ jobs:
 
       - name: Validate module sources
         run: |
-          for repo in Submodules/{{NAMESPACE}}-*; do
+          for repo in Submodules/{{NAMESPACE}}-{{PACK_PASCAL}}_*; do
             if [ ! -d "$repo/src" ]; then
               continue
             fi
@@ -111,195 +103,11 @@ jobs:
           DRY_RUN: ${{ inputs.is-dry-run }}
           FILTER: ${{ inputs.modules }}
         run: |
-          ORG="{{ORG}}"
-          CORE_REPO="{{COORD_ID}}"
-
-          mapfile -t AVAILABLE_MODULE_REPOS < <(find Submodules \
-            -mindepth 1 \
-            -maxdepth 1 \
-            -type d \
-            -name '{{NAMESPACE}}-*' \
-            -printf '%f\n' | sort)
-
-          is_available_module() {
-            local CANDIDATE="$1"
-            for MODULE_REPO in "${AVAILABLE_MODULE_REPOS[@]}"; do
-              if [ "$MODULE_REPO" = "$CANDIDATE" ]; then
-                return 0
-              fi
-            done
-            return 1
-          }
-
-          add_module_repo() {
-            local CANDIDATE="$1"
-            for MODULE_REPO in "${MODULE_REPOS[@]}"; do
-              if [ "$MODULE_REPO" = "$CANDIDATE" ]; then
-                return
-              fi
-            done
-            MODULE_REPOS+=("$CANDIDATE")
-          }
-
-          normalize_release_target() {
-            local RAW="$1"
-            RAW=$(echo "$RAW" | xargs)
-
-            if [ -z "$RAW" ]; then
-              return 1
-            fi
-
-            case "$RAW" in
-              Core|{{NAME}}|{{COORD_ID}})
-                echo "$CORE_REPO"
-                ;;
-              {{NAMESPACE}}-*)
-                echo "$RAW"
-                ;;
-              {{PACK_PASCAL}}_*)
-                echo "{{NAMESPACE}}-$RAW"
-                ;;
-              *)
-                echo "{{NAMESPACE}}-{{PACK_PASCAL}}_$RAW"
-                ;;
-            esac
-          }
-
-          MODULE_REPOS=()
-          CORE_SELECTED=0
-
-          if [ -n "$FILTER" ]; then
-            TARGET_ERRORS=0
-            IFS=',' read -ra REQUESTED_REPOS <<< "$FILTER"
-            for REQUESTED_REPO in "${REQUESTED_REPOS[@]}"; do
-              if ! TARGET=$(normalize_release_target "$REQUESTED_REPO"); then
-                continue
-              fi
-
-              if [ "$TARGET" = "$CORE_REPO" ]; then
-                CORE_SELECTED=1
-              elif is_available_module "$TARGET"; then
-                add_module_repo "$TARGET"
-              else
-                echo "::error title=Unknown release target::$TARGET is not a checked-out module repo."
-                TARGET_ERRORS=$((TARGET_ERRORS + 1))
-              fi
-            done
-
-            if [ "$TARGET_ERRORS" -gt 0 ]; then
-              exit 1
-            fi
-          else
-            MODULE_REPOS=("${AVAILABLE_MODULE_REPOS[@]}")
-            CORE_SELECTED=1
-          fi
-
-          if [ "${#MODULE_REPOS[@]}" -eq 0 ] && [ "$CORE_SELECTED" -eq 0 ]; then
-            echo "::error title=No release targets::No module or core release targets were selected."
-            exit 1
-          fi
-
-          echo "Release order:"
-          for REPO in "${MODULE_REPOS[@]}"; do
-            echo "  - $REPO"
-          done
-          if [ "$CORE_SELECTED" -eq 1 ]; then
-            echo "  - $CORE_REPO"
-          fi
-
-          TOTAL=0
-          SUCCEEDED=0
-
-          release_phase() {
-            local PHASE="$1"
-            shift
-            local PHASE_REPOS=("$@")
-            local DISPATCH_FAILED=0
-            local RELEASE_FAILED=0
-            local RUN_REPOS=()
-            local RUN_IDS=()
-
-            if [ "${#PHASE_REPOS[@]}" -eq 0 ]; then
-              return
-            fi
-
-            echo ""
-            echo "=========================================="
-            echo "  ${PHASE}"
-            echo "=========================================="
-
-            for REPO in "${PHASE_REPOS[@]}"; do
-              TOTAL=$((TOTAL + 1))
-              echo "--- Triggering: $ORG/$REPO ---"
-              DISPATCHED_AFTER=$(date -u -d '2 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
-
-              if gh workflow run release.yaml \
-                --repo "$ORG/$REPO" \
-                --field "tag=$TAG" \
-                --field "is-dry-run=$DRY_RUN"; then
-                RUN_ID=""
-                for attempt in {1..30}; do
-                  RUN_ID=$(gh run list \
-                    --repo "$ORG/$REPO" \
-                    --workflow release.yaml \
-                    --branch main \
-                    --limit 20 \
-                    --json databaseId,createdAt,event \
-                    --jq "map(select(.event == \"workflow_dispatch\" and .createdAt >= \"$DISPATCHED_AFTER\")) | sort_by(.createdAt) | reverse | .[0].databaseId // empty")
-
-                  if [ -n "$RUN_ID" ]; then
-                    break
-                  fi
-
-                  sleep 5
-                done
-
-                if [ -n "$RUN_ID" ]; then
-                  echo "  Dispatched as run $RUN_ID."
-                  RUN_REPOS+=("$REPO")
-                  RUN_IDS+=("$RUN_ID")
-                else
-                  echo "  FAILED to find dispatched workflow run."
-                  DISPATCH_FAILED=$((DISPATCH_FAILED + 1))
-                fi
-              else
-                echo "  FAILED to dispatch."
-                DISPATCH_FAILED=$((DISPATCH_FAILED + 1))
-              fi
-            done
-
-            if [ "$DISPATCH_FAILED" -gt 0 ]; then
-              echo "::error title=Release dispatch failed::$DISPATCH_FAILED child workflow dispatch(es) failed during $PHASE."
-              exit 1
-            fi
-
-            for i in "${!RUN_REPOS[@]}"; do
-              REPO="${RUN_REPOS[$i]}"
-              RUN_ID="${RUN_IDS[$i]}"
-
-              echo "--- Waiting: $ORG/$REPO run $RUN_ID ---"
-              if gh run watch "$RUN_ID" \
-                  --repo "$ORG/$REPO" \
-                  --exit-status \
-                  --interval 10; then
-                SUCCEEDED=$((SUCCEEDED + 1))
-              else
-                RELEASE_FAILED=$((RELEASE_FAILED + 1))
-              fi
-            done
-
-            if [ "$RELEASE_FAILED" -gt 0 ]; then
-              echo "::error title=Release failed::$RELEASE_FAILED child workflow run(s) failed during $PHASE."
-              exit 1
-            fi
-          }
-
-          release_phase "Module releases" "${MODULE_REPOS[@]}"
-          if [ "$CORE_SELECTED" -eq 1 ]; then
-            release_phase "Core release" "$CORE_REPO"
-          fi
-
-          echo ""
-          echo "=========================================="
-          echo "  Completed: $SUCCEEDED / $TOTAL"
-          echo "=========================================="
+          python3 Setup/github/release_all.py \
+            --org "{{ORG}}" \
+            --namespace "{{NAMESPACE}}" \
+            --pack-pascal "{{PACK_PASCAL}}" \
+            --core-repo "{{COORD_ID}}" \
+            --tag "$TAG" \
+            --child-dry-run "$DRY_RUN" \
+            --targets "$FILTER"
