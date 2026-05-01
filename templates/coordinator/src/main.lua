@@ -15,7 +15,6 @@ modutil = mods['SGG_Modding-ModUtil']
 local chalk  = mods['SGG_Modding-Chalk']
 local reload = mods['SGG_Modding-ReLoad']
 
----@diagnostic disable-next-line: redundant-parameter
 local config = chalk.auto('config.lua')
 
 local def = {
