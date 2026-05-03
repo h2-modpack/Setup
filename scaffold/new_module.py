@@ -44,6 +44,12 @@ def to_pascal(s):
     return "".join(word.capitalize() for word in s.replace("-", " ").replace("_", " ").split())
 
 
+def pascal_to_title(s):
+    """Convert PascalCase / acronym-ish names to a readable title."""
+    spaced = re.sub(r"(?<!^)(?=[A-Z])", " ", s).strip()
+    return spaced or s
+
+
 # =============================================================================
 # HELPERS
 # =============================================================================
@@ -55,6 +61,14 @@ def replace_in_file(path, replacements):
         content = content.replace(old, new)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
+
+
+def replace_in_tree(root, replacements, suffixes=(".lua", ".md", ".toml")):
+    for dirpath, _, filenames in os.walk(root):
+        for filename in filenames:
+            if not filename.endswith(suffixes):
+                continue
+            replace_in_file(os.path.join(dirpath, filename), replacements)
 
 
 def replace_dependency_version(path, dependency, version):
@@ -71,6 +85,60 @@ def replace_dependency_version(path, dependency, version):
         f.write(updated)
 
 
+def remove_if_exists(path):
+    if os.path.exists(path):
+        os.remove(path)
+
+
+def validate_current_lib_contract(local_path):
+    """Fail fast if the external module template still uses removed Lib APIs."""
+    src_dir = os.path.join(local_path, "src")
+    stale_patterns = {
+        "finalizeModuleHost": "host finalization is now owned by lib.createModuleHost(...)",
+        "public.host": "modules no longer publish public.host directly",
+        "getDefinition": "host.getDefinition() was removed; use host identity/meta/storage accessors",
+        "hasQuickContent": "host.hasQuickContent() was removed; quick content is detected by drawQuickContent",
+        "hasLifecycle": "lifecycle validation is owned by Lib during definition/host creation",
+        "getLiveModuleHostById": "live host lookup is by current module through Lib, not by pack/module id",
+    }
+    hits = []
+
+    for dirpath, _, filenames in os.walk(src_dir):
+        for filename in filenames:
+            if not filename.endswith(".lua"):
+                continue
+            path = os.path.join(dirpath, filename)
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            rel = os.path.relpath(path, local_path)
+            for pattern, reason in stale_patterns.items():
+                if pattern in content:
+                    hits.append(f"{rel}: found '{pattern}' ({reason})")
+            if re.search(r"standaloneHost\s*\([^)\s]", content):
+                hits.append(f"{rel}: lib.standaloneHost(...) should be called with no arguments")
+
+    main_path = os.path.join(src_dir, "main.lua")
+    with open(main_path, "r", encoding="utf-8") as f:
+        main_content = f.read()
+    required_markers = [
+        "lib.prepareDefinition",
+        "lib.createStore",
+        "lib.createModuleHost",
+        "lib.standaloneHost",
+    ]
+    for marker in required_markers:
+        if marker not in main_content:
+            hits.append(f"src/main.lua: missing current module bootstrap marker '{marker}'")
+
+    if hits:
+        details = "\n  - ".join(hits)
+        raise RuntimeError(
+            "External module template is stale against the current ModpackLib API:\n"
+            f"  - {details}\n"
+            "Update h2-modpack/h2-modpack-template before scaffolding this module."
+        )
+
+
 def git(args, cwd=None):
     return subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
 
@@ -83,6 +151,31 @@ def read_package_version(toml_path):
     if not version:
         raise RuntimeError(f"Missing package.versionNumber in {toml_path}")
     return version
+
+
+MODULE_README = """\
+# {title}
+
+{description}
+
+Part of the [{pack_title} modpack]({shell_url}).
+
+## What It Does
+
+TODO: Explain what this module lets players control.
+
+## Gameplay Impact
+
+TODO: Explain how this module changes a run when enabled.
+
+## How To Use
+
+Install using r2modman. In game, open the {pack_title} menu and configure this module from the shared settings window.
+
+## More Information
+
+- [{pack_title} modpack]({shell_url})
+"""
 
 
 # =============================================================================
@@ -103,6 +196,8 @@ def main():
     website_url    = f"https://github.com/{args.org}/{repo_name}"
     local_path     = os.path.join(SUBMODULES_DIR, repo_name)
     submodule_rel  = f"Submodules/{repo_name}"
+    pack_pascal    = to_pascal(args.pack_id)
+    module_title   = pascal_to_title(args.name)
     pack_title     = " ".join(w.capitalize() for w in args.pack_id.replace("-", "_").split("_"))  # "run-director" -> "Run Director"
     shell_repo     = f"{args.pack_id}-modpack"
     shell_url      = f"https://github.com/{args.org}/{shell_repo}"
@@ -170,22 +265,24 @@ def main():
     toml_path = os.path.join(local_path, "thunderstore.toml")
     replace_in_file(toml_path, {
         'namespace = "adamant"':              f'namespace = "{args.namespace}"',
-        'name = "TODO_ModName"':              f'name = "{to_pascal(args.pack_id)}_{args.name}"',
+        'name = "TODO_ModName"':              f'name = "{pack_pascal}_{args.name}"',
         '"TODO: Short description of the mod"': f'"{args.desc or "TODO: description for " + args.name}"',
         'https://github.com/h2-modpack/h2-modpack-TODO_ModName': website_url,
+        'readme = "./src/README.md"':         'readme = "./README.md"',
+        'readme = "./THUNDERSTORE_README.md"': 'readme = "./README.md"',
     })
     replace_dependency_version(toml_path, "adamant-ModpackLib", lib_version)
 
     readme_path = os.path.join(local_path, "README.md")
-    if os.path.exists(readme_path):
-        readme_replacements = {
-            'TODO_ModName':   args.name,
-            'TODO_PackTitle': pack_title,
-            'TODO_ShellUrl':  shell_url,
-        }
-        if args.desc:
-            readme_replacements['TODO: Short description of what this mod does.'] = args.desc
-        replace_in_file(readme_path, readme_replacements)
+    with open(readme_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(MODULE_README.format(
+            title=module_title,
+            description=args.desc or "TODO: Short description of what this module does.",
+            pack_title=pack_title,
+            shell_url=shell_url,
+        ))
+    remove_if_exists(os.path.join(local_path, "THUNDERSTORE_README.md"))
+    remove_if_exists(os.path.join(local_path, "src", "README.md"))
 
     # Fill PACK_ID in src/main.lua
     main_path = os.path.join(local_path, "src", "main.lua")
@@ -193,10 +290,20 @@ def main():
         print(f"\nERROR: expected template file missing: {main_path}")
         sys.exit(1)
 
+    identity_replacements = {
+        "TemplateModule_Internal": f"{pack_pascal}{args.name}_Internal",
+        "TemplateModuleInternal": f"{pack_pascal}{args.name}Internal",
+        "TODO_ModuleId": args.name,
+        "TODO Module Name": module_title,
+        "TODO tooltip": args.desc or f"TODO: tooltip for {module_title}",
+    }
+    replace_in_tree(os.path.join(local_path, "src"), identity_replacements, suffixes=(".lua",))
+
     replace_in_file(main_path, {
         'local PACK_ID = error("TODO: set PACK_ID to your pack id")':
             f'local PACK_ID = "{args.pack_id}"',
     })
+    validate_current_lib_contract(local_path)
 
     # -------------------------------------------------------------------------
     # Wire git hooks
@@ -212,7 +319,7 @@ def main():
     # Commit filled files and push
     # -------------------------------------------------------------------------
     print("\n>>> Committing filled identity files...")
-    run(["git", "add", "thunderstore.toml", "README.md", "src/main.lua"], cwd=local_path)
+    run(["git", "add", "-A"], cwd=local_path)
 
     result = git(["diff", "--cached", "--quiet"], cwd=local_path)
     if result.returncode == 0:
