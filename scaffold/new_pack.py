@@ -381,7 +381,6 @@ def main():
     Before running release automation, create these org Actions secrets
     with All repositories access:
       TCLI_AUTH_TOKEN
-      SUBMODULE_UPDATE_TOKEN
       RELEASE_DISPATCH_TOKEN
 
   To add game submodules:

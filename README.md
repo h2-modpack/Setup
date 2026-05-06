@@ -13,8 +13,6 @@ Setup is the shared toolbelt for a pack workspace:
 - register or prune submodule entries
 - optionally configure GitHub Actions secrets
 
-The shell's submodule update workflow needs a pack org secret named `SUBMODULE_UPDATE_TOKEN` once you want GitHub Actions to open pointer-update PRs.
-
 ## Create A New Pack
 
 Use one GitHub org per modpack. `new_pack.py` expects that org to already exist; it does not create the org.
@@ -60,18 +58,13 @@ On Linux/macOS, `./Setup/lin.sh` is a shorthand for the same local deploy path. 
 
 ## Remote Maintenance And Release
 
-Remote maintenance starts before the first Thunderstore release if you want GitHub Actions to keep shell submodule pointers current.
-
-Create `SUBMODULE_UPDATE_TOKEN` as a GitHub Actions org secret with **All repositories** access once you want the shell `Update Submodules` workflow to open pointer-update PRs. That workflow validates the pack, pushes an `automation/update-submodules` branch, and opens or updates the PR.
-
 Normal release maintenance is:
 
 1. Module, coordinator, Lib, or Framework repos change and are pushed.
-2. The shell `Update Submodules` workflow opens or updates the pointer PR using `SUBMODULE_UPDATE_TOKEN`.
-3. Merge that PR into `main` after checks pass.
-4. Run `Release All` from the shell repo when publishing the pack.
+2. Update and commit the shell submodule pointers as part of that development work.
+3. Run `Release All` from the shell repo when publishing the pack.
 
-`Release All` dispatches the child release workflows. Core/coordinator release depends on the module pointers being current in the shell, so keep the submodule update PR merged before publishing.
+`Release All` validates the checked-out shell snapshot before dispatching child release workflows, so stale or broken pointers are caught at the release gate.
 
 Before publishing releases, also add these GitHub Actions org secrets with **All repositories** access:
 
@@ -89,7 +82,6 @@ Use `github/deploy_secrets.py` only for tighter selected-repository access or re
 For selected-repository org secrets, create the org secrets first:
 
 - `TCLI_AUTH_TOKEN`
-- `SUBMODULE_UPDATE_TOKEN`
 - `RELEASE_DISPATCH_TOKEN`
 
 Then link them to this pack's repos:
@@ -99,7 +91,7 @@ python Setup/github/deploy_secrets.py --link-org-secrets --dry-run
 python Setup/github/deploy_secrets.py --link-org-secrets
 ```
 
-This links `TCLI_AUTH_TOKEN` to the coordinator and every `Submodules/*` repo, and links `SUBMODULE_UPDATE_TOKEN` plus `RELEASE_DISPATCH_TOKEN` to the shell repo.
+This links `TCLI_AUTH_TOKEN` to the coordinator and every `Submodules/*` repo, and links `RELEASE_DISPATCH_TOKEN` to the shell repo.
 
 Lib and Framework are excluded by default because they live in the shared `h2-modpack` org. Add `--include-lib-framework` only when intentionally managing those repos from this shell.
 
@@ -114,7 +106,6 @@ To also set shell workflow secrets directly on the shell repo:
 
 ```powershell
 $env:TCLI_AUTH_TOKEN = "your-thunderstore-token"
-$env:SUBMODULE_UPDATE_TOKEN = "your-github-pr-token"
 $env:RELEASE_DISPATCH_TOKEN = "your-github-dispatch-token"
 python Setup/github/deploy_secrets.py --include-shell
 ```
