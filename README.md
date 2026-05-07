@@ -41,7 +41,7 @@ python Setup/deploy/deploy_all.py --overwrite
 
 `new_module.py` creates the GitHub repo from the module template, fills in module identity, commits the initial repo, registers it under `Submodules/`, and syncs the coordinator dependency block.
 
-Generated modules inherit the current module template contract: split `main.lua` / `data.lua` / `logic.lua` / `ui.lua`, host-owned hook registration, and the standard module CI baseline.
+Generated modules use the standard module template contract: split `main.lua` / `data.lua` / `logic.lua` / `ui.lua`, host-owned hook registration, and the standard module CI baseline.
 
 ## Local Deployment
 
@@ -73,7 +73,7 @@ Before publishing releases, also add these GitHub Actions org secrets with **All
 
 The GitHub PAT value for `RELEASE_DISPATCH_TOKEN` is still created manually in GitHub user settings. Setup can store or link existing secret values, but it does not mint new PATs.
 
-With All repositories access, every current and future repo in the pack org can read the secrets. The shell, coordinator, and module repos are covered automatically, so the normal path does not need `github/deploy_secrets.py --link-org-secrets`.
+With All repositories access, every repo in the pack org can read the secrets. The shell, coordinator, and module repos are covered automatically, so the normal path does not need `github/deploy_secrets.py --link-org-secrets`.
 
 ## Alternative Secret Deployment
 

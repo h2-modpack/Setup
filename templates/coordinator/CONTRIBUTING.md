@@ -25,11 +25,11 @@ Use these docs as the coordinator contract:
 
 `windowTitle`: `"{{WINDOW_TITLE}}"`. Displayed as the ImGui window title.
 
-`frameworkDef.defaultProfiles`: shipped presets. To add or update a preset, edit `frameworkDef` in `src/main.lua`. Get the hash string from the Profiles tab export field in game.
+`DEFAULT_PROFILES`: shipped presets. To add or update a preset, edit `DEFAULT_PROFILES` in `src/main.lua`. Get the hash string from the Profiles tab export field in game.
 
-`frameworkDef.moduleOrder`: optional module tab ordering by `definition.id`. Modules not listed still appear after listed modules.
+`FRAMEWORK_OPTS.moduleOrder`: optional module tab ordering by `definition.id`. Modules not listed still appear after listed modules.
 
-`config.lua`: Chalk schema containing `ModEnabled`, `DebugMode`, and `Profiles`. The Profiles array length determines `frameworkDef.NUM_PROFILES` and must match the number of slots rendered in the UI.
+`config.lua`: Chalk schema containing `ModEnabled`, `DebugMode`, and `Profiles`. The Profiles array length is passed to `Framework.init(...)` and determines the number of saved profile slots rendered in the UI.
 
 Coordinator registration: `mods.on_all_mods_loaded(...)` intentionally registers the pack with Lib after the mod graph loads. ROM replays that callback on Core hot reload after the all-mods-loaded milestone, so Lib's stored rebuild callback closure stays current.
 

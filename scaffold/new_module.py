@@ -100,6 +100,12 @@ def validate_current_lib_contract(local_path):
         "hasQuickContent": "host.hasQuickContent() was removed; quick content is detected by drawQuickContent",
         "hasLifecycle": "lifecycle validation is owned by Lib during definition/host creation",
         "getLiveModuleHostById": "live host lookup is by current module through Lib, not by pack/module id",
+        "configKey": "storage aliases are declared with alias; configKey was removed from the Lib storage contract",
+        "lifetime": "storage lifetime was replaced by explicit persist/stage/hash axes",
+        "dataDefaults": "storage defaults now live in definition.storage declarations",
+    }
+    stale_regex_patterns = {
+        r"\bruntime\s*=\s*true\b": "runtime storage now uses stage = false, hash = false",
     }
     hits = []
 
@@ -114,8 +120,9 @@ def validate_current_lib_contract(local_path):
             for pattern, reason in stale_patterns.items():
                 if pattern in content:
                     hits.append(f"{rel}: found '{pattern}' ({reason})")
-            if re.search(r"standaloneHost\s*\([^)\s]", content):
-                hits.append(f"{rel}: lib.standaloneHost(...) should be called with no arguments")
+            for pattern, reason in stale_regex_patterns.items():
+                if re.search(pattern, content):
+                    hits.append(f"{rel}: matched /{pattern}/ ({reason})")
 
     main_path = os.path.join(src_dir, "main.lua")
     with open(main_path, "r", encoding="utf-8") as f:
