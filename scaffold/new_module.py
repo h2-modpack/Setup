@@ -91,56 +91,37 @@ def remove_if_exists(path):
 
 
 def validate_current_lib_contract(local_path):
-    """Fail fast if the external module template still uses removed Lib APIs."""
+    """Fail fast if the external module template is missing required scaffold markers."""
     src_dir = os.path.join(local_path, "src")
-    stale_patterns = {
-        "finalizeModuleHost": "host finalization is now owned by lib.createModuleHost(...)",
-        "public.host": "modules no longer publish public.host directly",
-        "getDefinition": "host.getDefinition() was removed; use host identity/meta/storage accessors",
-        "hasQuickContent": "host.hasQuickContent() was removed; quick content is detected by drawQuickContent",
-        "hasLifecycle": "lifecycle validation is owned by Lib during definition/host creation",
-        "getLiveModuleHostById": "live host lookup is by current module through Lib, not by pack/module id",
-        "configKey": "storage aliases are declared with alias; configKey was removed from the Lib storage contract",
-        "lifetime": "storage lifetime was replaced by explicit persist/stage/hash axes",
-        "dataDefaults": "storage defaults now live in definition.storage declarations",
-    }
-    stale_regex_patterns = {
-        r"\bruntime\s*=\s*true\b": "runtime storage now uses stage = false, hash = false",
-    }
-    hits = []
-
-    for dirpath, _, filenames in os.walk(src_dir):
-        for filename in filenames:
-            if not filename.endswith(".lua"):
-                continue
-            path = os.path.join(dirpath, filename)
-            with open(path, "r", encoding="utf-8") as f:
-                content = f.read()
-            rel = os.path.relpath(path, local_path)
-            for pattern, reason in stale_patterns.items():
-                if pattern in content:
-                    hits.append(f"{rel}: found '{pattern}' ({reason})")
-            for pattern, reason in stale_regex_patterns.items():
-                if re.search(pattern, content):
-                    hits.append(f"{rel}: matched /{pattern}/ ({reason})")
-
     main_path = os.path.join(src_dir, "main.lua")
+    logic_path = os.path.join(src_dir, "logic.lua")
     with open(main_path, "r", encoding="utf-8") as f:
         main_content = f.read()
-    required_markers = [
-        "lib.prepareDefinition",
-        "lib.createStore",
-        "lib.createModuleHost",
+    with open(logic_path, "r", encoding="utf-8") as f:
+        logic_content = f.read()
+
+    hits = []
+    main_markers = [
+        "lib.createModule",
+        "host.activate",
         "lib.standaloneHost",
     ]
-    for marker in required_markers:
+    logic_markers = [
+        "function internal.RegisterHooks(host, store)",
+        "store.read",
+        "host.isEnabled",
+    ]
+    for marker in main_markers:
         if marker not in main_content:
             hits.append(f"src/main.lua: missing current module bootstrap marker '{marker}'")
+    for marker in logic_markers:
+        if marker not in logic_content:
+            hits.append(f"src/logic.lua: missing current runtime-hook marker '{marker}'")
 
     if hits:
         details = "\n  - ".join(hits)
         raise RuntimeError(
-            "External module template is stale against the current ModpackLib API:\n"
+            "External module template does not match the scaffold script:\n"
             f"  - {details}\n"
             "Update h2-modpack/h2-modpack-template before scaffolding this module."
         )
