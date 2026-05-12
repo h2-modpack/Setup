@@ -94,29 +94,74 @@ def validate_current_lib_contract(local_path):
     """Fail fast if the external module template is missing required scaffold markers."""
     src_dir = os.path.join(local_path, "src")
     main_path = os.path.join(src_dir, "main.lua")
+    data_path = os.path.join(src_dir, "mods", "data.lua")
     logic_path = os.path.join(src_dir, "logic.lua")
+    if not os.path.exists(logic_path):
+        logic_path = os.path.join(src_dir, "mods", "logic.lua")
+
+    hits = []
+    if not os.path.exists(main_path):
+        hits.append("src/main.lua: missing module bootstrap file")
+    if not os.path.exists(data_path):
+        hits.append("src/mods/data.lua: missing data module file")
+    if not os.path.exists(logic_path):
+        hits.append("src/mods/logic.lua: missing logic module file")
+    if hits:
+        details = "\n  - ".join(hits)
+        raise RuntimeError(
+            "External module template does not match the scaffold script:\n"
+            f"  - {details}\n"
+            "Update h2-modpack/h2-modpack-template before scaffolding this module."
+        )
+
     with open(main_path, "r", encoding="utf-8") as f:
         main_content = f.read()
+    with open(data_path, "r", encoding="utf-8") as f:
+        data_content = f.read()
     with open(logic_path, "r", encoding="utf-8") as f:
         logic_content = f.read()
 
     hits = []
     main_markers = [
+        "MODULE_ANCHOR = MODULE_ANCHOR or {}",
+        "local moduleAnchor = MODULE_ANCHOR",
         "lib.createModule",
+        "owner = moduleAnchor",
         "host.activate",
         "lib.standaloneHost",
     ]
+    data_markers = [
+        "local data = {}",
+        "return data",
+    ]
     logic_markers = [
-        "function internal.RegisterHooks(host, store)",
+        "local logic = {}",
+        "function logic.bind(data)",
+        "function logic.registerHooks(host, store)",
+        "lib.hooks.Wrap(",
         "store.read",
         "host.isEnabled",
+        "return logic",
+    ]
+    stale_markers = [
+        "TemplateModule_Internal",
+        "TemplateModuleInternal",
+        "hookOwner",
+        "WrapOwned",
+        "OverrideOwned",
     ]
     for marker in main_markers:
         if marker not in main_content:
             hits.append(f"src/main.lua: missing current module bootstrap marker '{marker}'")
+    for marker in data_markers:
+        if marker not in data_content:
+            hits.append(f"src/mods/data.lua: missing current data module marker '{marker}'")
     for marker in logic_markers:
         if marker not in logic_content:
-            hits.append(f"src/logic.lua: missing current runtime-hook marker '{marker}'")
+            hits.append(f"{os.path.relpath(logic_path, local_path)}: missing current runtime-hook marker '{marker}'")
+    for marker in stale_markers:
+        if marker in main_content or marker in logic_content:
+            hits.append(f"template still contains stale module pattern marker '{marker}'")
 
     if hits:
         details = "\n  - ".join(hits)
@@ -279,8 +324,7 @@ def main():
         sys.exit(1)
 
     identity_replacements = {
-        "TemplateModule_Internal": f"{pack_pascal}{args.name}_Internal",
-        "TemplateModuleInternal": f"{pack_pascal}{args.name}Internal",
+        "TemplateModuleAnchor": f"{pack_pascal}{args.name}ModuleAnchor",
         "TODO_ModuleId": args.name,
         "TODO Module Name": module_title,
         "TODO tooltip": args.desc or f"TODO: tooltip for {module_title}",
