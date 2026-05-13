@@ -64,7 +64,7 @@ Normal release maintenance is:
 2. Update and commit the shell submodule pointers as part of that development work.
 3. Run `Release All` from the shell repo when publishing the pack.
 
-`Release All` validates the checked-out shell snapshot before dispatching child release workflows, so stale or broken pointers are caught at the release gate.
+`Release All` validates the checked-out shell snapshot before dispatching child release workflows. The dependency validator checks that required Thunderstore dependency edges exist, and prints the checked-out package versions plus current source pins for auditability. It does not require exact pin equality because Thunderstore resolves package dependencies to the latest available version.
 
 Before publishing releases, also add these GitHub Actions org secrets with **All repositories** access:
 
@@ -154,7 +154,7 @@ Deployment helpers:
 | `deploy/deploy_links.py` | Create r2modman profile symlinks for every mod |
 | `deploy/deploy_hooks.py` | Configure `.githooks` paths for every mod repo |
 | `deploy/deploy_common.py` | Shared deploy utilities |
-| `deploy/generate_manifest.py` | Generate a manifest for a single mod |
+| `deploy/generate_manifest.py` | Generate a manifest for a single mod using structured TOML parsing |
 
 GitHub automation helpers:
 
@@ -163,6 +163,7 @@ GitHub automation helpers:
 | `github/deploy_secrets.py` | Optional helper for org-secret linking or repo-level GitHub Actions secrets |
 | `github/release_all.py` | Shared pack-wide release dispatcher used by shell `Release All` workflows |
 | `tests/test_release_all.py` | Dry-run planner tests for release target normalization and version gating |
+| `validate_platform_versions.py` | Validate required platform dependency edges and print the checked-out version snapshot |
 
 Scaffolding helpers:
 

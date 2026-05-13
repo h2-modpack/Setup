@@ -1,73 +1,57 @@
-"""
-Reads a thunderstore.toml and generates a manifest.json for local deployment.
+#!/usr/bin/env python3
+"""Reads a thunderstore.toml and generates a manifest.json for local deployment.
 
 Usage: python generate_manifest.py <path_to_thunderstore.toml> <output_manifest.json>
 """
 
-import sys
-import os
+from __future__ import annotations
+
 import json
-import re
+import os
+import sys
+from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    print("Python 3.11+ is required for tomllib.", file=sys.stderr)
+    sys.exit(2)
 
 
+def _require_string(package: dict, key: str, toml_path: Path) -> str:
+    value = package.get(key)
+    if not isinstance(value, str) or value == "":
+        raise ValueError(f"{toml_path} is missing package.{key}")
+    return value
 
-def parse_toml(toml_path):
-    """
-    Reads thunderstore.toml and returns manifest fields.
-    """
-    with open(toml_path, "r", encoding="utf-8") as f:
-        content = f.read()
-        lines = content.splitlines()
 
-    namespace = ""
-    name = ""
-    description = ""
-    version = ""
-    website_url = ""
+def parse_toml(toml_path: str | os.PathLike[str]) -> dict:
+    """Reads thunderstore.toml and returns manifest fields."""
+    path = Path(toml_path)
+    with path.open("rb") as handle:
+        data = tomllib.load(handle)
+
+    package = data.get("package")
+    if not isinstance(package, dict):
+        raise ValueError(f"{path} is missing [package]")
+
+    namespace = _require_string(package, "namespace", path)
+    name = _require_string(package, "name", path)
+    description = _require_string(package, "description", path)
+    version = _require_string(package, "versionNumber", path)
+    website_url = package.get("websiteUrl", "")
+    if not isinstance(website_url, str):
+        raise ValueError(f"{path} package.websiteUrl must be a string when provided")
+
+    raw_dependencies = package.get("dependencies", {})
+    if not isinstance(raw_dependencies, dict):
+        raise ValueError(f"{path} package.dependencies must be a table when provided")
+
     dependencies = []
-
-    current_section = ""
-
-    for line in lines:
-        stripped = line.strip()
-
-        # Track sections
-        if stripped.startswith("["):
-            current_section = stripped.strip("[]").strip()
-            continue
-
-        # Skip empty/comment lines
-        if not stripped or stripped.startswith("#"):
-            continue
-
-        # Parse key = value
-        match = re.match(r'^(\S+)\s*=\s*(.+)$', stripped)
-        if not match:
-            continue
-
-        key = match.group(1)
-        raw_value = match.group(2).strip()
-
-        # Remove quotes from string values
-        if raw_value.startswith('"') and raw_value.endswith('"'):
-            value = raw_value[1:-1]
-        else:
-            value = raw_value
-
-        if current_section == "package":
-            if key == "namespace":
-                namespace = value
-            elif key == "name":
-                name = value
-            elif key == "description":
-                description = value
-            elif key == "versionNumber":
-                version = value
-            elif key == "websiteUrl":
-                website_url = value
-        elif current_section == "package.dependencies":
-            # Format: Namespace-Name = "version" -> "Namespace-Name-version"
-            dependencies.append(f"{key}-{value}")
+    for dependency, dependency_version in raw_dependencies.items():
+        if not isinstance(dependency_version, str) or dependency_version == "":
+            raise ValueError(f"{path} dependency {dependency} must have a non-empty string version")
+        dependencies.append(f"{dependency}-{dependency_version}")
 
     return {
         "namespace": namespace,
@@ -80,26 +64,31 @@ def parse_toml(toml_path):
     }
 
 
-def main():
+def main() -> int:
     if len(sys.argv) != 3:
         print("Usage: python generate_manifest.py <thunderstore.toml> <output_manifest.json>")
-        sys.exit(1)
+        return 1
 
-    toml_path = sys.argv[1]
-    output_path = sys.argv[2]
+    toml_path = Path(sys.argv[1])
+    output_path = Path(sys.argv[2])
 
-    if not os.path.isfile(toml_path):
+    if not toml_path.is_file():
         print(f"Error: '{toml_path}' not found.")
-        sys.exit(1)
+        return 1
 
-    manifest = parse_toml(toml_path)
+    try:
+        manifest = parse_toml(toml_path)
+    except (OSError, ValueError, tomllib.TOMLDecodeError) as exc:
+        print(f"Error: {exc}")
+        return 1
 
-    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(manifest, f, indent=2)
-        f.write("\n")
+    with output_path.open("w", encoding="utf-8", newline="\n") as handle:
+        json.dump(manifest, handle, indent=2)
+        handle.write("\n")
 
     print(f"  Generated manifest: {output_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

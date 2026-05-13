@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Validate modpack platform dependency pins.
+"""Validate modpack platform dependency presence.
 
 Run from a shell repo that has Setup checked out as a submodule. Lib and
 Framework own their package versions in their checked-out thunderstore.toml
 files; the shell repo owns the assembled snapshot through submodule pointers.
+
+Thunderstore resolves dependencies to the latest available matching package, so
+this check verifies required dependency edges are present without enforcing exact
+source pin equality.
 """
 
 from __future__ import annotations
@@ -53,17 +57,12 @@ def dependency_version(data: dict, dependency: str) -> str | None:
     return data.get("package", {}).get("dependencies", {}).get(dependency)
 
 
-def check_dependency(errors: list[str], path: Path, data: dict, dependency: str, expected: str) -> None:
+def check_dependency(errors: list[str], path: Path, data: dict, dependency: str) -> str | None:
     actual = dependency_version(data, dependency)
-    if actual == expected:
-        return
-
     if actual is None:
-        errors.append(f"{rel(path)} is missing dependency {dependency} = \"{expected}\"")
-    else:
-        errors.append(
-            f"{rel(path)} has {dependency} = \"{actual}\"; expected \"{expected}\""
-        )
+        errors.append(f"{rel(path)} is missing dependency {dependency}")
+        return None
+    return actual
 
 
 def find_core_toml() -> Path:
@@ -103,9 +102,16 @@ def main() -> int:
         return 1
 
     errors: list[str] = []
-    check_dependency(errors, framework_path, framework_data, lib_name, lib_version)
-    check_dependency(errors, core_path, core_data, lib_name, lib_version)
-    check_dependency(errors, core_path, core_data, framework_name, framework_version)
+    dependency_edges: list[tuple[str, str, str]] = []
+
+    def record_dependency(path: Path, data: dict, dependency: str) -> None:
+        actual = check_dependency(errors, path, data, dependency)
+        if actual is not None:
+            dependency_edges.append((rel(path), dependency, actual))
+
+    record_dependency(framework_path, framework_data, lib_name)
+    record_dependency(core_path, core_data, lib_name)
+    record_dependency(core_path, core_data, framework_name)
 
     loaded_modules: list[tuple[str, str]] = []
     for module_path in module_paths:
@@ -114,8 +120,8 @@ def main() -> int:
             module_name = package_name(module_path, module_data)
             module_version = package_version(module_path, module_data)
             loaded_modules.append((module_name, module_version))
-            check_dependency(errors, module_path, module_data, lib_name, lib_version)
-            check_dependency(errors, core_path, core_data, module_name, module_version)
+            record_dependency(module_path, module_data, lib_name)
+            record_dependency(core_path, core_data, module_name)
         except (OSError, ValueError) as exc:
             errors.append(str(exc))
 
@@ -129,6 +135,12 @@ def main() -> int:
             print(f"    {module_name} {module_version}")
     else:
         print("    (none)")
+    print("  Required dependency edges:")
+    if dependency_edges:
+        for path, dependency, actual in dependency_edges:
+            print(f"    {path}: {dependency} pinned as {actual}")
+    else:
+        print("    (none)")
 
     if errors:
         print("")
@@ -138,7 +150,7 @@ def main() -> int:
         return 1
 
     print("")
-    print("Platform dependency versions are coherent.")
+    print("Platform dependency presence is coherent.")
     return 0
 
 
