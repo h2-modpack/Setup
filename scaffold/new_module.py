@@ -197,11 +197,11 @@ Part of the [{pack_title} modpack]({shell_url}).
 
 ## What It Does
 
-TODO: Explain what this module lets players control.
+SCAFFOLD_TODO: Explain what this module lets players control.
 
 ## Gameplay Impact
 
-TODO: Explain how this module changes a run when enabled.
+SCAFFOLD_TODO: Explain how this module changes a run when enabled.
 
 ## How To Use
 
@@ -300,9 +300,9 @@ def main():
     toml_path = os.path.join(local_path, "thunderstore.toml")
     replace_in_file(toml_path, {
         'namespace = "adamant"':              f'namespace = "{args.namespace}"',
-        'name = "TODO_ModName"':              f'name = "{pack_pascal}_{args.name}"',
-        '"TODO: Short description of the mod"': f'"{args.desc or "TODO: description for " + args.name}"',
-        'https://github.com/h2-modpack/h2-modpack-TODO_ModName': website_url,
+        'name = "SCAFFOLD_TODO_ModName"':              f'name = "{pack_pascal}_{args.name}"',
+        '"SCAFFOLD_TODO: Short description of the mod"': f'"{args.desc or "SCAFFOLD_TODO: description for " + args.name}"',
+        'https://github.com/h2-modpack/h2-modpack-SCAFFOLD_TODO_ModName': website_url,
         'readme = "./src/README.md"':         'readme = "./README.md"',
         'readme = "./THUNDERSTORE_README.md"': 'readme = "./README.md"',
     })
@@ -312,7 +312,7 @@ def main():
     with open(readme_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(MODULE_README.format(
             title=module_title,
-            description=args.desc or "TODO: Short description of what this module does.",
+            description=args.desc or "SCAFFOLD_TODO: Short description of what this module does.",
             pack_title=pack_title,
             shell_url=shell_url,
         ))
@@ -327,14 +327,15 @@ def main():
 
     identity_replacements = {
         "TemplateModuleAnchor": f"{pack_pascal}{args.name}ModuleAnchor",
-        "TODO_ModuleId": args.name,
-        "TODO Module Name": module_title,
-        "TODO tooltip": args.desc or f"TODO: tooltip for {module_title}",
+        "SCAFFOLD_TODO_ModuleId": args.name,
+        "SCAFFOLD_TODO Module Name": module_title,
+        "SCAFFOLD_TODO_SHORT": args.name,
+        "SCAFFOLD_TODO tooltip": args.desc or f"SCAFFOLD_TODO: tooltip for {module_title}",
     }
     replace_in_tree(os.path.join(local_path, "src"), identity_replacements, suffixes=(".lua",))
 
     replace_in_file(main_path, {
-        'local PACK_ID = error("TODO: set PACK_ID to your pack id")':
+        'local PACK_ID = error("SCAFFOLD_TODO: set PACK_ID to your pack id")':
             f'local PACK_ID = "{args.pack_id}"',
     })
     validate_current_lib_contract(local_path)
