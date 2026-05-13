@@ -6,7 +6,7 @@ Thin coordinator for the {{WINDOW_TITLE}} modpack. Owns pack identity, config, d
 
 ```text
 src/
-  main.lua    -- ENVY wiring, config, Framework params, coordinator beacon, Framework.init call
+  main.lua    -- ENVY wiring, config, Framework params, coordinator beacon, Framework.tryInit call
 config.lua    -- Chalk config schema (ModEnabled, DebugMode, Profiles)
 ```
 
@@ -29,7 +29,7 @@ Use these docs as the coordinator contract:
 
 `FRAMEWORK_OPTS.moduleOrder`: optional module tab ordering by `definition.id`. Modules not listed still appear after listed modules.
 
-`config.lua`: Chalk schema containing `ModEnabled`, `DebugMode`, and `Profiles`. The Profiles array length is passed to `Framework.init(...)` and determines the number of saved profile slots rendered in the UI.
+`config.lua`: Chalk schema containing `ModEnabled`, `DebugMode`, and `Profiles`. The Profiles array length is passed to `Framework.tryInit(...)` and determines the number of saved profile slots rendered in the UI.
 
 Coordinator registration: `mods.on_all_mods_loaded(...)` intentionally registers the pack with Lib after the mod graph loads. ROM replays that callback on Core hot reload after the all-mods-loaded milestone, so Lib's stored rebuild callback closure stays current.
 

@@ -125,9 +125,9 @@ def validate_current_lib_contract(local_path):
     main_markers = [
         "MODULE_ANCHOR = MODULE_ANCHOR or {}",
         "local moduleAnchor = MODULE_ANCHOR",
-        "lib.createModule",
+        "lib.tryCreateModule",
         "owner = moduleAnchor",
-        "host.activate",
+        "host.tryActivate",
         "lib.standaloneHost",
     ]
     data_markers = [
@@ -149,6 +149,8 @@ def validate_current_lib_contract(local_path):
         "hookOwner",
         "WrapOwned",
         "OverrideOwned",
+        "lib.createModule({",
+        "host.activate()",
     ]
     for marker in main_markers:
         if marker not in main_content:
@@ -381,7 +383,7 @@ def main():
   Local   : {local_path}
 
   Next steps:
-    1. Edit src/main.lua — fill in definition fields and module logic
+    1. Edit src/main.lua and src/mods/*.lua — fill in definition fields and module behavior
     2. Review the synced Core thunderstore.toml dependency block
     3. python Setup/deploy/deploy_all.py --overwrite
     4. No secret update is needed if pack org secrets use All repositories access

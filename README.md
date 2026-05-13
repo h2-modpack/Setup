@@ -41,7 +41,7 @@ python Setup/deploy/deploy_all.py --overwrite
 
 `new_module.py` creates the GitHub repo from the module template, fills in module identity, commits the initial repo, registers it under `Submodules/`, and syncs the coordinator dependency block.
 
-Generated modules use the standard module template contract: split `main.lua` / `data.lua` / `logic.lua` / `ui.lua`, host-owned hook registration, and the standard module CI baseline.
+Generated modules use the standard module template contract: `main.lua` plus `mods/data.lua`, `mods/logic.lua`, and `mods/ui.lua`, safe module creation/activation, host-owned hook registration, and the standard module CI baseline.
 
 ## Local Deployment
 
