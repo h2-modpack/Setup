@@ -138,7 +138,6 @@ local function createBaseEnv()
     env._PLUGIN = nil
     env.AdamantModpackLib_Internal = false
     env.FrameworkPackRegistry = false
-    env.MODULE_ANCHOR = false
     installBit32Fallback(env)
 
     local callbacks = {

@@ -343,7 +343,6 @@ local function installSyntheticModules(pack)
     for _, module in ipairs(pack.modules) do
         rom.mods[module.dir] = {}
         local host = libApi.createModule({
-            owner = {},
             pluginGuid = module.dir,
             config = {},
             definition = {

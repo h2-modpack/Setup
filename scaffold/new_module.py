@@ -123,11 +123,11 @@ def validate_current_lib_contract(local_path):
 
     hits = []
     main_markers = [
-        "MODULE_ANCHOR = MODULE_ANCHOR or {}",
-        "local moduleAnchor = MODULE_ANCHOR",
         "lib.tryCreateModule",
-        "owner = moduleAnchor",
         "host.tryActivate",
+        "local standaloneUi = lib.standaloneUiBridge(PLUGIN_GUID)",
+        "rom.gui.add_imgui(standaloneUi.renderWindow)",
+        "rom.gui.add_to_menu_bar(standaloneUi.addMenuBar)",
         "lib.standaloneHost",
     ]
     data_markers = [
@@ -146,6 +146,9 @@ def validate_current_lib_contract(local_path):
     stale_markers = [
         "TemplateModule_Internal",
         "TemplateModuleInternal",
+        "MODULE_ANCHOR",
+        "moduleAnchor",
+        "owner = moduleAnchor",
         "hookOwner",
         "WrapOwned",
         "OverrideOwned",
