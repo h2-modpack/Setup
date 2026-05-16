@@ -45,6 +45,17 @@ def discover_lua_tests(lua_runner: str) -> list[TestCommand]:
             test_file = repo / "tests" / "all.lua"
             if test_file.is_file():
                 commands.append(TestCommand(repo.name, repo, [lua_runner, "tests/all.lua"]))
+
+    setup_tests_dir = SETUP_DIR / "tests"
+    if setup_tests_dir.is_dir():
+        for test_file in sorted(setup_tests_dir.glob("test_*.lua")):
+            commands.append(
+                TestCommand(
+                    f"Setup/{test_file.name}",
+                    ROOT_DIR,
+                    [lua_runner, str(test_file.relative_to(ROOT_DIR))],
+                )
+            )
     return commands
 
 
