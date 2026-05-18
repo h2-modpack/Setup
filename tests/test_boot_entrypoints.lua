@@ -268,7 +268,6 @@ local function resetWorld()
         },
     }
 
-    AdamantModpackLib_Internal = nil
     FrameworkPackRegistry = nil
     lib = nil
     Framework = nil

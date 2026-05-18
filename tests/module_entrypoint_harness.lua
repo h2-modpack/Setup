@@ -136,7 +136,6 @@ local function createBaseEnv()
     env._G = env
     env.public = nil
     env._PLUGIN = nil
-    env.AdamantModpackLib_Internal = false
     env.FrameworkPackRegistry = false
     installBit32Fallback(env)
 
