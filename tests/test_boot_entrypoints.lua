@@ -344,13 +344,11 @@ local function installSyntheticModules(pack)
         local host = libApi.createModule({
             pluginGuid = module.dir,
             config = {},
-            definition = {
-                modpack = pack.packId,
-                id = module.id,
-                name = module.id,
-                storage = {
-                    { type = "bool", alias = "SmokeFlag", default = false },
-                },
+            modpack = pack.packId,
+            id = module.id,
+            name = module.id,
+            storage = {
+                { type = "bool", alias = "SmokeFlag", default = false },
             },
             drawTab = function() end,
         })
