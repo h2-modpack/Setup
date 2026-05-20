@@ -351,7 +351,7 @@ local function installSyntheticModules(pack)
             },
             drawTab = function() end,
         })
-        local ok, err = host.tryActivate()
+        local ok, err = host.activate()
         assertTruthy(ok, "synthetic module did not activate: " .. tostring(err))
     end
 end

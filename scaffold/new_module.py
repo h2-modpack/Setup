@@ -123,8 +123,8 @@ def validate_current_lib_contract(local_path):
 
     hits = []
     main_markers = [
-        "lib.tryCreateModule",
-        "host.tryActivate",
+        "lib.createModule",
+        "host.activate",
         "local standaloneUi = lib.standaloneUiBridge(PLUGIN_GUID)",
         "rom.gui.add_imgui(standaloneUi.renderWindow)",
         "rom.gui.add_to_menu_bar(standaloneUi.addMenuBar)",
@@ -152,8 +152,6 @@ def validate_current_lib_contract(local_path):
         "hookOwner",
         "WrapOwned",
         "OverrideOwned",
-        "lib.createModule({",
-        "host.activate()",
     ]
     for marker in main_markers:
         if marker not in main_content:
