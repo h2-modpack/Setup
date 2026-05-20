@@ -332,7 +332,6 @@ end
 local function loadLibAndFramework()
     local libEnv = loadPlugin("adamant-ModpackLib", "adamant-ModpackLib/src")
     local frameworkEnv = loadPlugin("adamant-ModpackFramework", "adamant-ModpackFramework/src")
-    assertTruthy(libEnv.public.coordinator, "Lib coordinator API was not exported")
     assertEquals(type(frameworkEnv.public.tryInit), "function", "Framework.tryInit export")
     return libEnv, frameworkEnv
 end
@@ -366,8 +365,6 @@ local function testConventionPackPipelineBoots()
     loadPlugin(pack.coreDir, pack.coreDir .. "/src")
 
     runCallbacks(callbacks.allModsLoaded, "on_all_mods_loaded")
-    assertTruthy(rom.mods["adamant-ModpackLib"].coordinator.isRegistered(pack.packId),
-        "Core did not register the convention pack coordinator")
 
     runCallbacks(callbacks.gameLoaded, "once_loaded.game")
 
@@ -392,8 +389,6 @@ local function testCoordinatorTemplateBoots()
     )
 
     runCallbacks(callbacks.allModsLoaded, "template on_all_mods_loaded")
-    assertTruthy(rom.mods["adamant-ModpackLib"].coordinator.isRegistered("{{PACK_ID}}"),
-        "Coordinator template did not register its pack")
 
     runCallbacks(callbacks.gameLoaded, "template once_loaded.game")
     local packRegistry = frameworkEnv.FrameworkPackRegistry

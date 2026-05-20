@@ -296,12 +296,14 @@ function Harness.bootModule(opts)
     local moduleEnv = loadPlugin(env, opts.pluginGuid, opts.moduleSrcDir)
     runGameLoaded(callbacks)
 
+    local frameworkRuntime = env.lib.createFrameworkRuntime("adamant-ModpackFramework")
+
     return {
         env = env,
         lib = env.lib,
         moduleEnv = moduleEnv,
         callbacks = callbacks,
-        host = env.lib.getLiveModuleHost(opts.pluginGuid),
+        host = frameworkRuntime.modules.getLiveHost(opts.pluginGuid),
     }
 end
 

@@ -138,7 +138,7 @@ def validate_current_lib_contract(local_path):
         "local logic = {}",
         "function logic.bind(data)",
         "function logic.registerHooks(host, store)",
-        "lib.hooks.Wrap(",
+        "host.hooks.wrap(",
         "store.read",
         "host.isEnabled",
         "return logic",

@@ -15,9 +15,6 @@ game = rom.game
 modutil = mods['SGG_Modding-ModUtil']
 local chalk  = mods['SGG_Modding-Chalk']
 local reload = mods['SGG_Modding-ReLoad']
----@module "adamant-ModpackLib"
----@type AdamantModpackLib
-lib = mods["adamant-ModpackLib"]
 ---@module "adamant-ModpackFramework"
 ---@type AdamantModpackFramework
 Framework = mods["adamant-ModpackFramework"]
@@ -54,10 +51,9 @@ local function rebuildFramework()
 end
 
 mods.on_all_mods_loaded(function()
-    assert(lib and lib.coordinator and type(lib.coordinator.register) == "function",
-        "{{COORD_ID}}: adamant-ModpackLib is not loaded")
-    lib.coordinator.register(PACK_ID, config)
-    lib.coordinator.registerRebuild(PACK_ID, rebuildFramework)
+    assert(Framework and type(Framework.registerCoordinator) == "function",
+        "{{COORD_ID}}: adamant-ModpackFramework is not loaded")
+    Framework.registerCoordinator(PACK_ID, config, rebuildFramework)
 end)
 
 local function init()
