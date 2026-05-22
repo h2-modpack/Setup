@@ -6,7 +6,7 @@ Thin coordinator for the {{WINDOW_TITLE}} modpack. Owns pack identity, config, d
 
 ```text
 src/
-  main.lua    -- ENVY wiring, config, Framework params, coordinator beacon, Framework.tryInit call
+  main.lua    -- ENVY wiring, config, Framework params, coordinator beacon, Framework.createPack call
 config.lua    -- Chalk config schema (ModEnabled, DebugMode, Profiles)
 ```
 
@@ -16,8 +16,8 @@ Use these docs as the coordinator contract:
 
 - [Framework README.md](https://github.com/h2-modpack/adamant-ModpackFramework/blob/main/README.md)
 - [Lib README.md](https://github.com/h2-modpack/adamant-ModpackLib/blob/main/README.md)
-- [Lib Hot Reload Architecture](https://github.com/h2-modpack/adamant-ModpackLib/blob/main/docs/HOT_RELOAD_ARCHITECTURE.md)
-- [Known Limitations](https://github.com/h2-modpack/adamant-ModpackLib/blob/main/docs/KNOWN_LIMITATIONS.md)
+- [Lib Hot Reload Architecture](https://github.com/h2-modpack/adamant-ModpackLib/blob/main/docs/lib-contributors/HOT_RELOAD_ARCHITECTURE.md)
+- [Known Limitations](https://github.com/h2-modpack/adamant-ModpackLib/blob/main/docs/references/KNOWN_LIMITATIONS.md)
 
 ## What the Coordinator Owns
 
@@ -29,7 +29,7 @@ Use these docs as the coordinator contract:
 
 `FRAMEWORK_OPTS.moduleOrder`: optional module tab ordering by `definition.id`. Modules not listed still appear after listed modules.
 
-`config.lua`: Chalk schema containing `ModEnabled`, `DebugMode`, and `Profiles`. The Profiles array length is passed to `Framework.tryInit(...)` and determines the number of saved profile slots rendered in the UI.
+`config.lua`: Chalk schema containing `ModEnabled`, `DebugMode`, and `Profiles`. The Profiles array length is passed to `Framework.createPack(...)` and determines the number of saved profile slots rendered in the UI.
 
 Coordinator registration: `mods.on_all_mods_loaded(...)` intentionally registers the pack with Lib after the mod graph loads. ROM replays that callback on Core hot reload after the all-mods-loaded milestone, so Lib's stored rebuild callback closure stays current.
 

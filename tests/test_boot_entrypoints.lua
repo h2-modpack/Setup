@@ -332,7 +332,7 @@ end
 local function loadLibAndFramework()
     local libEnv = loadPlugin("adamant-ModpackLib", "adamant-ModpackLib/src")
     local frameworkEnv = loadPlugin("adamant-ModpackFramework", "adamant-ModpackFramework/src")
-    assertEquals(type(frameworkEnv.public.tryInit), "function", "Framework.tryInit export")
+    assertEquals(type(frameworkEnv.public.createPack), "function", "Framework.createPack export")
     return libEnv, frameworkEnv
 end
 
