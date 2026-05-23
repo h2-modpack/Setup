@@ -109,15 +109,18 @@ local function makeModUtil(callbacks, env)
         callbacks.wraps[#callbacks.wraps + 1] = { kind = "contextWrap", name = name, handler = handler }
     end
 
+    local runtime = {
+        Path = path,
+    }
+
     return {
+        globals = env,
         once_loaded = {
             game = function(callback)
                 callbacks.gameLoaded[#callbacks.gameLoaded + 1] = callback
             end,
         },
-        mod = {
-            Path = path,
-        },
+        mod = runtime,
     }
 end
 
@@ -148,6 +151,7 @@ local function createBaseEnv()
         setupRunDataCount = 0,
     }
     local modUtil = makeModUtil(callbacks, env)
+    env.ModUtil = modUtil.mod
 
     env.rom = {
         mods = {},

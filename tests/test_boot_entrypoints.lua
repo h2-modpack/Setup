@@ -131,7 +131,7 @@ local function makeConfig()
     }
 end
 
-local function makeModUtil(callbacks)
+local function makeModUtil(callbacks, globals)
     local path = {}
     path.Context = {}
 
@@ -151,15 +151,20 @@ local function makeModUtil(callbacks)
         callbacks.wraps[#callbacks.wraps + 1] = { kind = "contextWrap", name = name, handler = handler }
     end
 
+    local runtime = {
+        Path = path,
+    }
+
+    globals.ModUtil = runtime
+
     return {
+        globals = globals,
         once_loaded = {
             game = function(callback)
                 callbacks.gameLoaded[#callbacks.gameLoaded + 1] = callback
             end,
         },
-        mod = {
-            Path = path,
-        },
+        mod = runtime,
     }
 end
 
@@ -173,7 +178,13 @@ local function resetWorld()
         menuBar = {},
         setupRunDataCount = 0,
     }
-    local modUtil = makeModUtil(callbacks)
+    local game = {
+        DeepCopyTable = deepCopy,
+        SetupRunData = function()
+            callbacks.setupRunDataCount = callbacks.setupRunDataCount + 1
+        end,
+    }
+    local modUtil = makeModUtil(callbacks, game)
 
     local mods = {
         ["SGG_Modding-ENVY"] = {
@@ -212,12 +223,7 @@ local function resetWorld()
 
     rom = {
         mods = mods,
-        game = {
-            DeepCopyTable = deepCopy,
-            SetupRunData = function()
-                callbacks.setupRunDataCount = callbacks.setupRunDataCount + 1
-            end,
-        },
+        game = game,
         ImGui = makeImgui(),
         ImGuiCol = {
             Text = 1,
