@@ -352,11 +352,11 @@ local function installSyntheticModules(pack)
             modpack = pack.packId,
             id = module.id,
             name = module.id,
-            storage = {
-                { type = "bool", alias = "SmokeFlag", default = false },
-            },
-            drawTab = function() end,
         })
+        host.data.define({
+            { type = "bool", alias = "SmokeFlag", default = false },
+        })
+        host.ui.tab(function() end)
         local ok, err = host.activate()
         assertTruthy(ok, "synthetic module did not activate: " .. tostring(err))
     end
