@@ -307,7 +307,7 @@ function Harness.bootModule(opts)
         lib = env.lib,
         moduleEnv = moduleEnv,
         callbacks = callbacks,
-        host = frameworkRuntime.modules.getLiveHost(opts.pluginGuid),
+        liveModule = frameworkRuntime.modules.getLiveModule(opts.pluginGuid),
     }
 end
 
