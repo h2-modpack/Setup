@@ -18,7 +18,7 @@ deps are never touched:
 The Core module is discovered automatically: any root-level folder whose
 thunderstore.toml has a package name ending in "Core".
 
-Repos with no remote configured are skipped with a warning — create the GitHub
+Repos with no remote configured are skipped with a warning - create the GitHub
 repo first, add it as `origin`, then re-run this script.
 
 Usage (run from anywhere inside the shell repo):
@@ -171,7 +171,7 @@ def update_core_deps():
             new_text = text.rstrip() + "\n" + block + "\n"
 
     open(core_toml, "w", encoding="utf-8").write(new_text)
-    print(f"  synced  Core deps ({len(names)} submodules)  →  {os.path.relpath(core_toml, ROOT_DIR)}")
+    print(f"  synced  Core deps ({len(names)} submodules)  ->  {os.path.relpath(core_toml, ROOT_DIR)}")
     print()
     print("  NOTE: Run `python Setup/deploy/deploy_all.py --overwrite` to deploy changes to the game.")
 
@@ -224,7 +224,7 @@ def main():
 
             print()
             if failed_prune:
-                print(f"  {len(failed_prune)} prune(s) failed — check errors above.")
+                print(f"  {len(failed_prune)} prune(s) failed - check errors above.")
                 sys.exit(1)
             else:
                 print(f"  Pruned. Re-reading registered paths...")
@@ -256,7 +256,7 @@ def main():
         url = remote_url(path)
         if not url:
             warnings.append(name)
-            print(f"  WARN    {name}  — no remote origin. Create a GitHub repo,")
+            print(f"  WARN    {name}  - no remote origin. Create a GitHub repo,")
             print(f"          run `git remote add origin <url>` inside it, then re-run.")
             continue
 
@@ -293,7 +293,7 @@ def main():
 
         print()
         if failed:
-            print(f"  {len(failed)} failed — check errors above.")
+            print(f"  {len(failed)} failed - check errors above.")
             sys.exit(1)
 
     # -------------------------------------------------------------------------
