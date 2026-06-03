@@ -310,14 +310,14 @@ def main():
 
     print(f"""
   What will be created
-  ─────────────────────────────────────────────
+  ---------------------------------------------
   Module ID      : {args.name}
   Display title  : {module_title}
   Pack ID        : {args.pack_id}
   Thunderstore   : {repo_name}
   GitHub repo    : {args.org}/{repo_name}
   Local folder   : {submodule_rel}
-  ─────────────────────────────────────────────""")
+  ---------------------------------------------""")
 
     answer = input("  Proceed? [y/N] ").strip().lower()
     if answer != "y":
@@ -414,7 +414,7 @@ def main():
     if os.path.isdir(githooks):
         run(["git", "config", "core.hooksPath", ".githooks"], cwd=local_path)
     else:
-        print("  (.githooks not found — skipping)")
+        print("  (.githooks not found - skipping)")
 
     # -------------------------------------------------------------------------
     # Commit filled files and push
@@ -450,7 +450,7 @@ def main():
   Local   : {local_path}
 
   Next steps:
-    1. Edit src/main.lua and src/mods/*.lua — fill in definition fields and module behavior
+    1. Edit src/main.lua and src/mods/*.lua - fill in definition fields and module behavior
     2. Review the synced Core thunderstore.toml dependency block
     3. python Setup/deploy/deploy_all.py --overwrite
     4. No secret update is needed if pack org secrets use All repositories access

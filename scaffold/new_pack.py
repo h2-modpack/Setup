@@ -10,7 +10,7 @@ Clone Setup next to where you want the new pack, then run:
 The shell repo is created as a sibling of the Setup folder:
   ../speedrun-modpack/
 
-The standalone Setup clone is deleted at the end — it re-enters as a submodule.
+The standalone Setup clone is deleted at the end - it re-enters as a submodule.
 
 Naming convention:
   --pack-id should be a single lowercase word (e.g. "speedrun", "hades", "pvp").
@@ -51,7 +51,7 @@ SETUP_URL     = "https://github.com/h2-modpack/Setup.git"
 # =============================================================================
 # TEMPLATES
 # =============================================================================
-# Use {{PLACEHOLDER}} markers — simple .replace(), no f-string conflicts with Lua.
+# Use {{PLACEHOLDER}} markers - simple .replace(), no f-string conflicts with Lua.
 
 CONFIG_LUA = """\
 ---@meta {{NAMESPACE}}-config-{{NAME}}
@@ -168,7 +168,7 @@ def read_package_version(toml_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new modpack shell repo")
-    parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.createPack — single word preferred (e.g. 'speedrun')")
+    parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.createPack - single word preferred (e.g. 'speedrun')")
     parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
     parser.add_argument("--title",     default=None,   help="Window title (default: title-case of pack-id)")
     parser.add_argument("--org",       required=True,        help="GitHub org (e.g. 'my-org')")
@@ -186,7 +186,7 @@ def main():
 
     print(f"""
   What will be created
-  ─────────────────────────────────────────────
+  ---------------------------------------------
   Window title   : {title}
   Pack ID        : {args.pack_id}
   Local output   : {output}
@@ -202,7 +202,7 @@ def main():
 
   Thunderstore IDs
     Coordinator  : {coordinator_id}  (namespace={args.namespace}, name={name})
-  ─────────────────────────────────────────────""")
+  ---------------------------------------------""")
 
     answer = input("  Proceed? [y/N] ").strip().lower()
     if answer != "y":
@@ -216,7 +216,7 @@ def main():
     os.makedirs(output)
 
     # -------------------------------------------------------------------------
-    # Shell repo — create on GitHub, init locally, set remote
+    # Shell repo - create on GitHub, init locally, set remote
     # -------------------------------------------------------------------------
     print(f">>> Creating shell repo {args.org}/{shell_repo}...")
     run([
@@ -242,7 +242,7 @@ def main():
     framework_version = read_package_version(os.path.join(output, "adamant-ModpackFramework", "thunderstore.toml"))
 
     # -------------------------------------------------------------------------
-    # Coordinator — generate files, push to new GitHub repo, then add as submodule
+    # Coordinator - generate files, push to new GitHub repo, then add as submodule
     # -------------------------------------------------------------------------
     coord_dir = os.path.join(output, coordinator_id)
 
@@ -353,7 +353,7 @@ def main():
     run(["git", "push", "-u", "origin", "main"],      cwd=output)
 
     # -------------------------------------------------------------------------
-    # Self-cleanup — delete the standalone Setup clone (now a submodule)
+    # Self-cleanup - delete the standalone Setup clone (now a submodule)
     # -------------------------------------------------------------------------
     print("\n>>> Cleaning up standalone Setup clone...")
     try:
