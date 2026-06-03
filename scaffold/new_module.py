@@ -124,34 +124,59 @@ def validate_current_lib_contract(local_path):
     hits = []
     main_markers = [
         "lib.createModule",
-        "host.activate",
-        "local standaloneUi = lib.standaloneUiBridge(PLUGIN_GUID)",
-        "rom.gui.add_imgui(standaloneUi.renderWindow)",
-        "rom.gui.add_to_menu_bar(standaloneUi.addMenuBar)",
-        "lib.standaloneHost",
+        "pluginGuid = PLUGIN_GUID",
+        "local PLUGIN_GUID = _PLUGIN.guid",
+        "module.data.define(data.buildStorage())",
+        "module.ui.tab(ui.drawTab)",
+        "module.ui.quickContent(ui.drawQuickContent)",
+        "module.fallbackUi.attachGuiOnce(function(fallbackUi)",
+        "rom.gui.add_imgui(fallbackUi.renderWindow)",
+        "rom.gui.add_to_menu_bar(fallbackUi.addMenuBar)",
+        "logic.attach(module)",
+        "module.activate",
     ]
     data_markers = [
         "local data = {}",
+        "function data.buildStorage()",
         "return data",
     ]
     logic_markers = [
         "local logic = {}",
         "function logic.bind(data)",
-        "function logic.registerHooks(host, store)",
-        "host.hooks.wrap(",
-        "store.read",
-        "host.isEnabled",
+        "function logic.buildActions()",
+        "function logic.buildPatchPlan(host, runtime, plan)",
+        "function logic.registerHooks(moduleRef)",
+        "moduleRef.hooks.wrap(",
+        "runtime.data.read",
+        "function logic.attach(moduleRef)",
+        "moduleRef.actions.define(logic.buildActions())",
+        "moduleRef.mutation.patch(logic.buildPatchPlan)",
         "return logic",
     ]
     stale_markers = [
         "TemplateModule_Internal",
         "TemplateModuleInternal",
+        "TemplateModuleAnchor",
         "MODULE_ANCHOR",
         "moduleAnchor",
         "owner = moduleAnchor",
         "hookOwner",
         "WrapOwned",
         "OverrideOwned",
+        "lib.tryCreateModule",
+        "tryActivate",
+        "lib.standaloneHost",
+        "standaloneUiBridge",
+        "hashGroupPlan",
+        "buildHashGroupPlan",
+        "registerPatchMutation",
+        "function logic.registerHooks(host, store)",
+        "store.read",
+        "lib.hooks.",
+        "host.hooks.wrap(",
+        "storage = data.buildStorage()",
+        "drawTab = ui.drawTab",
+        "drawQuickContent = ui.drawQuickContent",
     ]
     for marker in main_markers:
         if marker not in main_content:
@@ -327,7 +352,6 @@ def main():
         sys.exit(1)
 
     identity_replacements = {
-        "TemplateModuleAnchor": f"{pack_pascal}{args.name}ModuleAnchor",
         "SCAFFOLD_TODO_ModuleId": args.name,
         "SCAFFOLD_TODO Module Name": module_title,
         "SCAFFOLD_TODO_SHORT": args.name,

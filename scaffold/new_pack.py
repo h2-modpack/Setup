@@ -168,7 +168,7 @@ def read_package_version(toml_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new modpack shell repo")
-    parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.tryInit — single word preferred (e.g. 'speedrun')")
+    parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.createPack — single word preferred (e.g. 'speedrun')")
     parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
     parser.add_argument("--title",     default=None,   help="Window title (default: title-case of pack-id)")
     parser.add_argument("--org",       required=True,        help="GitHub org (e.g. 'my-org')")
