@@ -10,7 +10,13 @@ SCAFFOLD_DIR = SETUP_DIR / "scaffold"
 if str(SCAFFOLD_DIR) not in sys.path:
     sys.path.insert(0, str(SCAFFOLD_DIR))
 
-from new_module import normalize_title, pascal_to_title, validate_current_lib_contract, validate_module_name  # noqa: E402
+from new_module import (  # noqa: E402
+    normalize_title,
+    pascal_to_title,
+    validate_current_lib_contract,
+    validate_module_name,
+    validate_package_name,
+)
 
 
 CURRENT_MAIN_LUA = """
@@ -127,6 +133,21 @@ def test_new_module_name_validation_rejects_package_unsafe_names() -> None:
             pass
         else:
             raise AssertionError(f"invalid module name accepted: {value}")
+
+
+def test_new_module_package_name_validation_allows_thunderstore_word_breaks() -> None:
+    validate_package_name("Gameplay_QoL")
+    validate_package_name("Balance_Changes")
+    validate_package_name("Live_Split")
+    validate_package_name("Select_First_Hammer")
+
+    for value in ("Gameplay QoL", "Gameplay-QoL", "_Gameplay_QoL", "Gameplay_QoL_", "Gameplay__QoL"):
+        try:
+            validate_package_name(value)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid package name accepted: {value}")
 
 
 def test_new_module_title_normalization_is_display_only() -> None:

@@ -8,8 +8,10 @@ commits the filled files, pushes, and registers it as a submodule.
 Usage (run from the shell repo root):
   python Setup/scaffold/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org
   python Setup/scaffold/new_module.py --name GameplayQoL --title "Gameplay QoL" --pack-id speedrun --namespace adamant --org my-org
+  python Setup/scaffold/new_module.py --name GameplayQoL --package-name Gameplay_QoL --title "Gameplay QoL" --pack-id speedrun --namespace adamant --org my-org
 
   --name      Package-safe PascalCase module id (e.g. SkipPausingEncounters, GameplayQoL)
+  --package-name Thunderstore/repo package suffix (optional; e.g. Gameplay_QoL)
   --title     Human display name       (optional; e.g. "Gameplay QoL")
   --pack-id   Pack this module belongs to (e.g. speedrun) - sets modpack field
   --namespace Thunderstore namespace   (e.g. adamant)
@@ -71,9 +73,17 @@ def pascal_to_title(s):
 
 
 def validate_module_name(name):
-    """Thunderstore package component / repo suffix: no spaces, PascalCase-ish."""
+    """Lua/Lib module id: no spaces, PascalCase-ish."""
     if not re.fullmatch(r"[A-Z][A-Za-z0-9]*", name or ""):
         raise ValueError("--name must be package-safe PascalCase without spaces (e.g. BossRush, GameplayQoL)")
+
+
+def validate_package_name(name):
+    """Thunderstore package-name component. Underscores are preferred word separators."""
+    if not re.fullmatch(r"[A-Za-z0-9_]+", name or ""):
+        raise ValueError("--package-name must contain only letters, numbers, and underscores")
+    if name.startswith("_") or name.endswith("_") or "__" in name:
+        raise ValueError("--package-name must not start/end with '_' or contain repeated underscores")
 
 
 def normalize_title(title):
@@ -283,6 +293,7 @@ Install using r2modman. In game, open the {pack_title} menu and configure this m
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new module repo from template")
     parser.add_argument("--name",      required=True,  help="PascalCase module name (e.g. SkipPausingEncounters)")
+    parser.add_argument("--package-name", default=None, help="Thunderstore/repo package suffix (optional; e.g. Gameplay_QoL)")
     parser.add_argument("--title",     default=None,   help="Human display name (optional; e.g. 'Gameplay QoL')")
     parser.add_argument("--pack-id",   required=True,  help="Pack this module belongs to (e.g. speedrun)")
     parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
@@ -292,13 +303,15 @@ def main():
 
     try:
         validate_module_name(args.name)
+        package_name = args.package_name or args.name
+        validate_package_name(package_name)
         module_title = normalize_title(args.title) or pascal_to_title(args.name)
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
 
     # GitHub repo, local folder, and Thunderstore ID are all the same string.
-    repo_name      = f"{args.namespace}-{to_pascal(args.pack_id)}_{args.name}"         # adamant-Speedrun_SkipPausingEncounters
+    repo_name      = f"{args.namespace}-{to_pascal(args.pack_id)}_{package_name}"      # adamant-Speedrun_Skip_Pausing_Encounters
     website_url    = f"https://github.com/{args.org}/{repo_name}"
     local_path     = os.path.join(SUBMODULES_DIR, repo_name)
     submodule_rel  = f"Submodules/{repo_name}"
@@ -312,6 +325,7 @@ def main():
   What will be created
   ---------------------------------------------
   Module ID      : {args.name}
+  Package suffix : {package_name}
   Display title  : {module_title}
   Pack ID        : {args.pack_id}
   Thunderstore   : {repo_name}
@@ -367,7 +381,7 @@ def main():
     toml_path = os.path.join(local_path, "thunderstore.toml")
     replace_in_file(toml_path, {
         'namespace = "adamant"':              f'namespace = "{args.namespace}"',
-        'name = "SCAFFOLD_TODO_ModName"':              f'name = "{pack_pascal}_{args.name}"',
+        'name = "SCAFFOLD_TODO_ModName"':              f'name = "{pack_pascal}_{package_name}"',
         '"SCAFFOLD_TODO: Short description of the mod"': f'"{args.desc or "SCAFFOLD_TODO: description for " + args.name}"',
         'https://github.com/h2-modpack/h2-modpack-SCAFFOLD_TODO_ModName': website_url,
         'readme = "./src/README.md"':         'readme = "./README.md"',
