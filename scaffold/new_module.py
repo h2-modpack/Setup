@@ -7,8 +7,10 @@ commits the filled files, pushes, and registers it as a submodule.
 
 Usage (run from the shell repo root):
   python Setup/scaffold/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org
+  python Setup/scaffold/new_module.py --name GameplayQoL --title "Gameplay QoL" --pack-id speedrun --namespace adamant --org my-org
 
-  --name      PascalCase module name   (e.g. SkipPausingEncounters)
+  --name      Package-safe PascalCase module id (e.g. SkipPausingEncounters, GameplayQoL)
+  --title     Human display name       (optional; e.g. "Gameplay QoL")
   --pack-id   Pack this module belongs to (e.g. speedrun) - sets modpack field
   --namespace Thunderstore namespace   (e.g. adamant)
   --org       GitHub org               (e.g. h2-modpack)
@@ -37,6 +39,7 @@ SETUP_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR       = os.path.dirname(SETUP_DIR)
 SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
 TEMPLATE_REPO  = "h2-modpack/h2-modpack-template"
+KNOWN_ACRONYMS = ("QoL", "LrT", "RTA", "IGT")
 
 
 def to_pascal(s):
@@ -46,8 +49,42 @@ def to_pascal(s):
 
 def pascal_to_title(s):
     """Convert PascalCase / acronym-ish names to a readable title."""
-    spaced = re.sub(r"(?<!^)(?=[A-Z])", " ", s).strip()
-    return spaced or s
+    tokens = []
+    index = 0
+    while index < len(s):
+        acronym = next((item for item in KNOWN_ACRONYMS if s.startswith(item, index)), None)
+        if acronym:
+            tokens.append(acronym)
+            index += len(acronym)
+            continue
+
+        match = re.match(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|$)|[0-9]+", s[index:])
+        if match:
+            tokens.append(match.group(0))
+            index += len(match.group(0))
+            continue
+
+        tokens.append(s[index])
+        index += 1
+
+    return " ".join(tokens).strip() or s
+
+
+def validate_module_name(name):
+    """Thunderstore package component / repo suffix: no spaces, PascalCase-ish."""
+    if not re.fullmatch(r"[A-Z][A-Za-z0-9]*", name or ""):
+        raise ValueError("--name must be package-safe PascalCase without spaces (e.g. BossRush, GameplayQoL)")
+
+
+def normalize_title(title):
+    if title is None:
+        return None
+    normalized = title.strip()
+    if not normalized:
+        raise ValueError("--title must not be empty when provided")
+    if "\n" in normalized or "\r" in normalized:
+        raise ValueError("--title must be a single line")
+    return normalized
 
 
 # =============================================================================
@@ -246,11 +283,19 @@ Install using r2modman. In game, open the {pack_title} menu and configure this m
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new module repo from template")
     parser.add_argument("--name",      required=True,  help="PascalCase module name (e.g. SkipPausingEncounters)")
+    parser.add_argument("--title",     default=None,   help="Human display name (optional; e.g. 'Gameplay QoL')")
     parser.add_argument("--pack-id",   required=True,  help="Pack this module belongs to (e.g. speedrun)")
     parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
     parser.add_argument("--org",       required=True,  help="GitHub org (e.g. 'h2-modpack')")
     parser.add_argument("--desc",      default=None,   help="Short description for Thunderstore and README (optional)")
     args = parser.parse_args()
+
+    try:
+        validate_module_name(args.name)
+        module_title = normalize_title(args.title) or pascal_to_title(args.name)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
 
     # GitHub repo, local folder, and Thunderstore ID are all the same string.
     repo_name      = f"{args.namespace}-{to_pascal(args.pack_id)}_{args.name}"         # adamant-Speedrun_SkipPausingEncounters
@@ -258,7 +303,6 @@ def main():
     local_path     = os.path.join(SUBMODULES_DIR, repo_name)
     submodule_rel  = f"Submodules/{repo_name}"
     pack_pascal    = to_pascal(args.pack_id)
-    module_title   = pascal_to_title(args.name)
     pack_title     = " ".join(w.capitalize() for w in args.pack_id.replace("-", "_").split("_"))  # "run-director" -> "Run Director"
     shell_repo     = f"{args.pack_id}-modpack"
     shell_url      = f"https://github.com/{args.org}/{shell_repo}"
@@ -267,7 +311,8 @@ def main():
     print(f"""
   What will be created
   ─────────────────────────────────────────────
-  Module name    : {args.name}
+  Module ID      : {args.name}
+  Display title  : {module_title}
   Pack ID        : {args.pack_id}
   Thunderstore   : {repo_name}
   GitHub repo    : {args.org}/{repo_name}
@@ -278,10 +323,6 @@ def main():
     if answer != "y":
         print("  Aborted.")
         sys.exit(0)
-
-    if not args.name[0].isupper():
-        print("ERROR: --name must be PascalCase (e.g. BossRush)")
-        sys.exit(1)
 
     if os.path.exists(local_path):
         print(f"\nERROR: {local_path} already exists.")

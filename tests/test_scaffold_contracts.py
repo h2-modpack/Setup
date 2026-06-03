@@ -10,7 +10,7 @@ SCAFFOLD_DIR = SETUP_DIR / "scaffold"
 if str(SCAFFOLD_DIR) not in sys.path:
     sys.path.insert(0, str(SCAFFOLD_DIR))
 
-from new_module import validate_current_lib_contract  # noqa: E402
+from new_module import normalize_title, pascal_to_title, validate_current_lib_contract, validate_module_name  # noqa: E402
 
 
 CURRENT_MAIN_LUA = """
@@ -105,6 +105,41 @@ def test_new_module_validator_rejects_stale_contract() -> None:
             assert "standaloneUiBridge" in str(exc)
         else:
             raise AssertionError("stale module template marker was accepted")
+
+
+def test_new_module_title_fallback_preserves_known_acronyms() -> None:
+    assert pascal_to_title("SelectFirstHammer") == "Select First Hammer"
+    assert pascal_to_title("LiveSplit") == "Live Split"
+    assert pascal_to_title("QoL") == "QoL"
+    assert pascal_to_title("GameplayQoL") == "Gameplay QoL"
+    assert pascal_to_title("TimerRTAIGT") == "Timer RTA IGT"
+    assert pascal_to_title("LastRunLrT") == "Last Run LrT"
+
+
+def test_new_module_name_validation_rejects_package_unsafe_names() -> None:
+    validate_module_name("GameplayQoL")
+    validate_module_name("QoL")
+
+    for value in ("gameplayQoL", "Gameplay QoL", "Gameplay-QoL", "Gameplay_QoL", "1Gameplay"):
+        try:
+            validate_module_name(value)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid module name accepted: {value}")
+
+
+def test_new_module_title_normalization_is_display_only() -> None:
+    assert normalize_title(" Gameplay QoL ") == "Gameplay QoL"
+    assert normalize_title(None) is None
+
+    for value in ("", "   ", "Two\nLines"):
+        try:
+            normalize_title(value)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid title accepted: {value!r}")
 
 
 def test_coordinator_template_uses_current_framework_contract() -> None:
