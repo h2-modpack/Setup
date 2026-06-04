@@ -1,10 +1,10 @@
 # {{WINDOW_TITLE}} Modpack
 
-{{WINDOW_TITLE}} is a modular Hades II modpack. This Core package provides the shared in-game menu and coordinates the modules that belong to the pack.
+{{WINDOW_TITLE}} is a modular Hades II modpack. This Modpack package provides the shared in-game menu and coordinates the modules that belong to the pack.
 
 ## What This Provides
 
-Core ties the pack modules together into one shared settings window. It owns the pack-level menu entry, profile slots, config hash support, and pack-level enable/disable behavior.
+The Modpack package ties the pack modules together into one shared settings window. It owns the pack-level menu entry, profile slots, config hash support, and pack-level enable/disable behavior.
 
 The actual gameplay options come from the installed modules.
 

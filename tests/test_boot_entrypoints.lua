@@ -69,6 +69,7 @@ local function discoverPack()
     local cores = {}
     for _, dir in ipairs(listDirs(".")) do
         local packPascal = string.match(dir, "^adamant%-(.+)_Core$")
+            or string.match(dir, "^adamant%-(.+)_Modpack$")
         if packPascal then
             cores[#cores + 1] = {
                 dir = dir,
@@ -76,12 +77,12 @@ local function discoverPack()
             }
         end
     end
-    assertEquals(#cores, 1, "convention core repo count")
+    assertEquals(#cores, 1, "convention coordinator repo count")
 
     local core = cores[1]
     local coreMain = readFile(core.dir .. "/src/main.lua")
     local packId = string.match(coreMain, "PACK_ID%s*=%s*['\"]([^'\"]+)['\"]")
-    assertTruthy(packId, "Core src/main.lua must declare PACK_ID")
+    assertTruthy(packId, "Coordinator src/main.lua must declare PACK_ID")
 
     local modules = {}
     local modulePrefix = "adamant-" .. core.packPascal .. "_"

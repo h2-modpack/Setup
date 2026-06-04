@@ -63,7 +63,7 @@ def test_mass_release_selects_all_modules_and_core() -> None:
 def test_targeted_release_accepts_module_and_core_aliases() -> None:
     plan = build_plan(
         "1.2.1",
-        "BiomeControl, RunDirector_GodPool, adamant-RunDirector_BoonBans, Core, ModpackRunDirectorCore",
+        "BiomeControl, RunDirector_GodPool, adamant-RunDirector_BoonBans, Core, ModpackRunDirectorCore, Modpack",
     )
     assert_equal(
         plan.module_repos,

@@ -76,10 +76,10 @@ def find_core_toml() -> Path:
 
         data = load_toml(toml_path)
         name = data.get("package", {}).get("name", "")
-        if name.endswith("Core"):
+        if name.endswith("Core") or name.endswith("Modpack"):
             return toml_path
 
-    raise FileNotFoundError("No root-level Core thunderstore.toml found")
+    raise FileNotFoundError("No root-level coordinator thunderstore.toml found")
 
 
 def main() -> int:

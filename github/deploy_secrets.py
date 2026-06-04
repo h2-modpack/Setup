@@ -2,12 +2,12 @@
 Configure GitHub Actions secrets for a modpack's GitHub repos.
 
 Preferred mode links existing org-level selected secrets to the shell,
-coordinator/core, and Submodules/* repos:
+coordinator, and Submodules/* repos:
 
   python Setup/github/deploy_secrets.py --link-org-secrets
 
 Fallback mode sets repo-level secrets by value. By default it sets
-TCLI_AUTH_TOKEN on the coordinator/core repo and every Submodules/* repo:
+TCLI_AUTH_TOKEN on the coordinator repo and every Submodules/* repo:
 
   python Setup/github/deploy_secrets.py
 """
@@ -226,7 +226,7 @@ def org_link_mode(args, package_repos, shell_repo_slug, package_secret_names, sh
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Configure GitHub Actions secrets for the shell, coordinator/core, "
+            "Configure GitHub Actions secrets for the shell, coordinator, "
             "and Submodules/* repos."
         )
     )

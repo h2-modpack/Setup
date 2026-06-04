@@ -453,7 +453,7 @@ def main():
         clone_url, submodule_rel,
     ], cwd=ROOT_DIR)
 
-    print("\n>>> Syncing Core module dependency block...")
+    print("\n>>> Syncing coordinator module dependency block...")
     update_core_deps()
 
     print(f"""
@@ -465,7 +465,7 @@ def main():
 
   Next steps:
     1. Edit src/main.lua and src/mods/*.lua - fill in definition fields and module behavior
-    2. Review the synced Core thunderstore.toml dependency block
+    2. Review the synced coordinator thunderstore.toml dependency block
     3. python Setup/deploy/deploy_all.py --overwrite
     4. No secret update is needed if pack org secrets use All repositories access
 ==========================================================

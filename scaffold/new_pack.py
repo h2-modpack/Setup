@@ -18,8 +18,8 @@ Naming convention:
 
   Given --pack-id "speedrun" --namespace "adamant":
     Shell repo:        speedrun-modpack
-    Coordinator ID:    adamant-Speedrun_Core
-    Coordinator repo:  adamant-Speedrun_Core
+    Coordinator ID:    adamant-Speedrun_Modpack
+    Coordinator repo:  adamant-Speedrun_Modpack
     Lib folder:        adamant-ModpackLib
     Framework folder:  adamant-ModpackFramework
 
@@ -152,8 +152,8 @@ def pack_id_to_pascal(pack_id):
 
 
 def pack_id_to_name(pack_id):
-    """'speedrun' -> 'Speedrun_Core'"""
-    return pack_id_to_pascal(pack_id) + "_Core"
+    """'speedrun' -> 'Speedrun_Modpack'"""
+    return pack_id_to_pascal(pack_id) + "_Modpack"
 
 
 def read_package_version(toml_path):
@@ -180,7 +180,7 @@ def main():
 
     shell_repo       = f"{args.pack_id}-modpack"
     shell_url        = f"https://github.com/{args.org}/{shell_repo}.git"
-    coordinator_id   = f"{args.namespace}-{name}"                          # adamant-Speedrun_Core
+    coordinator_id   = f"{args.namespace}-{name}"                          # adamant-Speedrun_Modpack
     coordinator_repo = coordinator_id                                       # GitHub repo name = Thunderstore ID = local folder
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
 

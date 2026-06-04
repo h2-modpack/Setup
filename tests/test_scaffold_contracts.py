@@ -17,6 +17,7 @@ from new_module import (  # noqa: E402
     validate_module_name,
     validate_package_name,
 )
+from new_pack import pack_id_to_name  # noqa: E402
 
 
 CURRENT_MAIN_LUA = """
@@ -161,6 +162,11 @@ def test_new_module_title_normalization_is_display_only() -> None:
             pass
         else:
             raise AssertionError(f"invalid title accepted: {value!r}")
+
+
+def test_new_pack_uses_modpack_coordinator_suffix() -> None:
+    assert pack_id_to_name("speedrun") == "Speedrun_Modpack"
+    assert pack_id_to_name("run-director") == "RunDirector_Modpack"
 
 
 def test_coordinator_template_uses_current_framework_contract() -> None:

@@ -1,22 +1,22 @@
 """
-Register existing repos in Submodules/ as git submodules and sync the Core
-module's Thunderstore dependency list.
+Register existing repos in Submodules/ as git submodules and sync the
+coordinator module's Thunderstore dependency list.
 
 Scans Submodules/ for git repos not yet registered in .gitmodules, reads their
 remote URL, and runs `git submodule add --force` to register them.
 
 With --prune, also removes .gitmodules entries whose Submodules/ folder is gone.
 
-After register/prune, updates the [package.dependencies] block in the Core
-module's thunderstore.toml. A managed marker block is used so infrastructure
+After register/prune, updates the [package.dependencies] block in the
+coordinator module's thunderstore.toml. A managed marker block is used so infrastructure
 deps are never touched:
 
     # -- submodules-start --
     adamant-QoL = "1.0.0"
     # -- submodules-end --
 
-The Core module is discovered automatically: any root-level folder whose
-thunderstore.toml has a package name ending in "Core".
+The coordinator module is discovered automatically: any root-level folder whose
+thunderstore.toml has a package name ending in "Core" or "Modpack".
 
 Repos with no remote configured are skipped with a warning - create the GitHub
 repo first, add it as `origin`, then re-run this script.
@@ -80,7 +80,7 @@ def current_branch(repo_path):
 
 
 def find_core_toml():
-    """Find the Core module's thunderstore.toml in root-level folders."""
+    """Find the coordinator module's thunderstore.toml in root-level folders."""
     for entry in os.scandir(ROOT_DIR):
         if not entry.is_dir() or entry.name.startswith("."):
             continue
@@ -90,7 +90,7 @@ def find_core_toml():
         with open(toml_path, "rb") as f:
             data = tomllib.load(f)
         name = data.get("package", {}).get("name", "")
-        if name.endswith("Core"):
+        if name.endswith("Core") or name.endswith("Modpack"):
             return toml_path
     return None
 
@@ -133,14 +133,14 @@ def current_submodule_names():
 
 
 def update_core_deps():
-    """Sync the managed submodule block in the Core thunderstore.toml."""
-    print("Syncing Core module dependencies...")
-    print("  Detecting Core module: scanning root-level folders for a thunderstore.toml")
-    print("  whose package name ends in 'Core'...")
+    """Sync the managed submodule block in the coordinator thunderstore.toml."""
+    print("Syncing coordinator module dependencies...")
+    print("  Detecting coordinator module: scanning root-level folders for a thunderstore.toml")
+    print("  whose package name ends in 'Core' or 'Modpack'...")
 
     core_toml = find_core_toml()
     if not core_toml:
-        print("  WARN  No Core module found, skipping dep sync.")
+        print("  WARN  No coordinator module found, skipping dep sync.")
         return
 
     print(f"  found   {os.path.relpath(core_toml, ROOT_DIR)}")
@@ -161,7 +161,7 @@ def update_core_deps():
         # First run: insert block before the next section after [package.dependencies]
         dep_header = "[package.dependencies]"
         if dep_header not in text:
-            print("  WARN  No [package.dependencies] section in Core toml, skipping dep sync.")
+            print("  WARN  No [package.dependencies] section in coordinator toml, skipping dep sync.")
             return
         m = re.search(r'(\[package\.dependencies\].*?)(\n\[)', text, re.DOTALL)
         if m:
@@ -171,7 +171,7 @@ def update_core_deps():
             new_text = text.rstrip() + "\n" + block + "\n"
 
     open(core_toml, "w", encoding="utf-8").write(new_text)
-    print(f"  synced  Core deps ({len(names)} submodules)  ->  {os.path.relpath(core_toml, ROOT_DIR)}")
+    print(f"  synced  coordinator deps ({len(names)} submodules)  ->  {os.path.relpath(core_toml, ROOT_DIR)}")
     print()
     print("  NOTE: Run `python Setup/deploy/deploy_all.py --overwrite` to deploy changes to the game.")
 
@@ -297,7 +297,7 @@ def main():
             sys.exit(1)
 
     # -------------------------------------------------------------------------
-    # Sync Core module dependencies
+    # Sync coordinator module dependencies
     # -------------------------------------------------------------------------
     print()
     update_core_deps()

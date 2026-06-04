@@ -111,9 +111,12 @@ def _casefold_map(values: list[str]) -> dict[str, str]:
 def core_aliases(config: ReleaseConfig) -> set[str]:
     aliases = {
         "Core",
+        "Modpack",
         config.core_repo,
         f"{config.pack_pascal}_Core",
+        f"{config.pack_pascal}_Modpack",
         f"Modpack{config.pack_pascal}Core",
+        f"Modpack{config.pack_pascal}",
     }
 
     namespace_prefix = f"{config.namespace}-"
