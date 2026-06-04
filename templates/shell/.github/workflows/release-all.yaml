@@ -14,6 +14,9 @@ on:
         description: "Comma-separated repo names to release (blank = all)"
         required: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   release:
     name: Trigger releases
@@ -29,7 +32,7 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           submodules: recursive
           token: ${{ secrets.RELEASE_DISPATCH_TOKEN }}
