@@ -51,7 +51,7 @@ def discover_lua_tests(lua_runner: str) -> list[TestCommand]:
         for test_file in sorted(setup_tests_dir.glob("test_*.lua")):
             commands.append(
                 TestCommand(
-                    f"Setup/{test_file.name}",
+                    f"ModpackTools/{test_file.name}",
                     ROOT_DIR,
                     [lua_runner, str(test_file.relative_to(ROOT_DIR))],
                 )
@@ -64,7 +64,7 @@ def discover_python_tests() -> list[TestCommand]:
     if not tests_dir.is_dir():
         return []
     return [
-        TestCommand(f"Setup/{test_file.name}", ROOT_DIR, [sys.executable, str(test_file)])
+        TestCommand(f"ModpackTools/{test_file.name}", ROOT_DIR, [sys.executable, str(test_file)])
         for test_file in sorted(tests_dir.glob("test_*.py"))
     ]
 
@@ -89,7 +89,7 @@ def run_commands(commands: list[TestCommand]) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lua", default=None, help="Lua 5.2 executable override")
-    parser.add_argument("--python-only", action="store_true", help="Run only Setup Python tests")
+    parser.add_argument("--python-only", action="store_true", help="Run only ModpackTools Python tests")
     args = parser.parse_args()
 
     commands = discover_python_tests()

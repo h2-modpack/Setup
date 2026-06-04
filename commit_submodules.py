@@ -3,7 +3,7 @@ Commit and push all Submodules/* repos with a shared commit message.
 Skips repos with nothing to commit.
 
 Usage:
-    python Setup/commit_submodules.py "your commit message"
+    python ModpackTools/commit_submodules.py "your commit message"
 """
 
 import glob
@@ -30,7 +30,7 @@ def run(cmd, cwd):
 
 def main():
     if len(sys.argv) < 2 or not sys.argv[1].strip():
-        print("Usage: python Setup/commit_submodules.py \"commit message\"")
+        print("Usage: python ModpackTools/commit_submodules.py \"commit message\"")
         sys.exit(1)
 
     message    = sys.argv[1].strip()

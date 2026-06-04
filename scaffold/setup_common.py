@@ -1,5 +1,5 @@
 """
-Shared utilities for new_pack.py and new_module.py.
+Shared utilities for ModpackTools scaffold scripts.
 """
 
 import os

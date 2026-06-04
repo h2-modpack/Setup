@@ -3,7 +3,7 @@
 
 This script is intentionally pack-parameterized so shell workflow YAML only
 passes pack identity while the release planning and dispatch behavior remains
-testable in Setup.
+testable in ModpackTools.
 """
 
 from __future__ import annotations
@@ -423,7 +423,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--targets", nargs="?", default="", const="", help="Comma-separated release targets. Blank means all.")
     parser.add_argument("--child-dry-run", default="false", help="Pass dry-run mode to child release workflows.")
     parser.add_argument("--plan-only", action="store_true", help="Validate and print the plan without dispatching.")
-    parser.add_argument("--root", default=str(ROOT_DIR), help="Shell repo root. Defaults to parent of Setup/.")
+    parser.add_argument("--root", default=str(ROOT_DIR), help="Shell repo root. Defaults to parent of ModpackTools/.")
     parser.add_argument("--workflow", default="release.yaml", help="Child workflow filename.")
     parser.add_argument("--branch", default="main", help="Child workflow branch.")
     return parser

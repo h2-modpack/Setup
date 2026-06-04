@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate modpack platform dependency presence.
 
-Run from a shell repo that has Setup checked out as a submodule. Lib and
+Run from a shell repo that has ModpackTools checked out as a submodule. Lib and
 Framework own their package versions in their checked-out thunderstore.toml
 files; the shell repo owns the assembled snapshot through submodule pointers.
 

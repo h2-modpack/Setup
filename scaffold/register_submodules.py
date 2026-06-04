@@ -22,8 +22,8 @@ Repos with no remote configured are skipped with a warning - create the GitHub
 repo first, add it as `origin`, then re-run this script.
 
 Usage (run from anywhere inside the shell repo):
-  python Setup/scaffold/register_submodules.py
-  python Setup/scaffold/register_submodules.py --prune
+  python ModpackTools/scaffold/register_submodules.py
+  python ModpackTools/scaffold/register_submodules.py --prune
 """
 
 import os
@@ -173,7 +173,7 @@ def update_core_deps():
     open(core_toml, "w", encoding="utf-8").write(new_text)
     print(f"  synced  coordinator deps ({len(names)} submodules)  ->  {os.path.relpath(core_toml, ROOT_DIR)}")
     print()
-    print("  NOTE: Run `python Setup/deploy/deploy_all.py --overwrite` to deploy changes to the game.")
+    print("  NOTE: Run `python ModpackTools/deploy/deploy_all.py --overwrite` to deploy changes to the game.")
 
 
 # =============================================================================

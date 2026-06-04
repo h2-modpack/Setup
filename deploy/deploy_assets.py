@@ -29,7 +29,7 @@ def main():
             dest = os.path.join(src_dir, asset)
 
             if not os.path.exists(source):
-                print(f"  WARNING: {asset} not found in Setup/")
+                print(f"  WARNING: {asset} not found in ModpackTools/")
                 continue
 
             if os.path.exists(dest) and not args.overwrite:

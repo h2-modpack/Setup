@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for Setup/deploy/deploy_common.py."""
+"""Tests for ModpackTools/deploy/deploy_common.py."""
 
 from __future__ import annotations
 

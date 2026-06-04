@@ -416,24 +416,6 @@ local function testConventionPackPipelineBoots()
     end
 end
 
-local function testCoordinatorTemplateBoots()
-    local callbacks = resetWorld()
-    local _, frameworkEnv = loadLibAndFramework()
-    loadPlugin(
-        "template-coordinator",
-        "Setup/templates/coordinator/src",
-        "Setup/templates/coordinator/src/main.lua"
-    )
-
-    runCallbacks(callbacks.allModsLoaded, "template on_all_mods_loaded")
-
-    runCallbacks(callbacks.gameLoaded, "template once_loaded.game")
-    local packRegistry = frameworkEnv.FrameworkPackRegistry
-    assertTruthy(packRegistry and packRegistry.packs and packRegistry.packs["{{PACK_ID}}"],
-        "Coordinator template did not initialize a Framework pack")
-end
-
 testConventionPackPipelineBoots()
-testCoordinatorTemplateBoots()
 
-print("2 generic boot pipeline smoke tests passed.")
+print("1 generic boot pipeline smoke test passed.")

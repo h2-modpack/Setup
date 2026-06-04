@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dry-run tests for Setup/github/release_all.py."""
+"""Dry-run tests for ModpackTools/github/release_all.py."""
 
 from __future__ import annotations
 
