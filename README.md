@@ -133,6 +133,7 @@ Scaffolding helpers:
 |---|---|
 | `scaffold/new_module.py` | Scaffold a module repo from the template and register it as a submodule |
 | `scaffold/register_submodules.py` | Register or prune `Submodules/` entries in `.gitmodules` |
+| `scaffold/coordinator_deps.py` | Sync the coordinator's managed module dependency block |
 
 ## Common Flags
 

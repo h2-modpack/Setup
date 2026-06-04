@@ -35,7 +35,7 @@ import argparse
 import subprocess
 import re
 import tomllib
-from register_submodules import update_coordinator_deps
+from coordinator_deps import update_coordinator_deps
 
 
 TOOLS_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
