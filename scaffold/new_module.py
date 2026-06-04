@@ -35,12 +35,12 @@ import argparse
 import subprocess
 import re
 import tomllib
-from register_submodules import update_core_deps
+from register_submodules import update_coordinator_deps
 from setup_common import run
 
 
-SETUP_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROOT_DIR       = os.path.dirname(SETUP_DIR)
+TOOLS_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT_DIR       = os.path.dirname(TOOLS_DIR)
 SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
 TEMPLATE_REPO  = "h2-modpack/ModpackModuleTemplate"
 
@@ -529,7 +529,7 @@ def main():
     ], cwd=ROOT_DIR)
 
     print("\n>>> Syncing coordinator module dependency block...")
-    update_core_deps()
+    update_coordinator_deps()
 
     print(f"""
 ==========================================================

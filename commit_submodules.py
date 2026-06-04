@@ -12,8 +12,8 @@ import subprocess
 import sys
 
 
-SETUP_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR  = os.path.dirname(SETUP_DIR)
+TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR  = os.path.dirname(TOOLS_DIR)
 
 
 def discover_submodules():

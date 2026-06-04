@@ -22,8 +22,8 @@ except ModuleNotFoundError:
     sys.exit(2)
 
 
-SETUP_DIR = Path(__file__).resolve().parent
-ROOT = SETUP_DIR.parent
+TOOLS_DIR = Path(__file__).resolve().parent
+ROOT = TOOLS_DIR.parent
 
 
 def rel(path: Path) -> str:
@@ -65,7 +65,7 @@ def check_dependency(errors: list[str], path: Path, data: dict, dependency: str)
     return actual
 
 
-def find_core_toml() -> Path:
+def find_coordinator_toml() -> Path:
     for entry in sorted(ROOT.iterdir()):
         if not entry.is_dir() or entry.name.startswith("."):
             continue
@@ -76,7 +76,7 @@ def find_core_toml() -> Path:
 
         data = load_toml(toml_path)
         name = data.get("package", {}).get("name", "")
-        if name.endswith("Core") or name.endswith("Modpack"):
+        if name.endswith("_Modpack"):
             return toml_path
 
     raise FileNotFoundError("No root-level coordinator thunderstore.toml found")
@@ -90,8 +90,8 @@ def main() -> int:
     try:
         lib_data = load_toml(lib_path)
         framework_data = load_toml(framework_path)
-        core_path = find_core_toml()
-        core_data = load_toml(core_path)
+        coordinator_path = find_coordinator_toml()
+        coordinator_data = load_toml(coordinator_path)
         module_paths = sorted(module_root.glob("*/thunderstore.toml"))
         lib_name = package_name(lib_path, lib_data)
         framework_name = package_name(framework_path, framework_data)
@@ -110,8 +110,8 @@ def main() -> int:
             dependency_edges.append((rel(path), dependency, actual))
 
     record_dependency(framework_path, framework_data, lib_name)
-    record_dependency(core_path, core_data, lib_name)
-    record_dependency(core_path, core_data, framework_name)
+    record_dependency(coordinator_path, coordinator_data, lib_name)
+    record_dependency(coordinator_path, coordinator_data, framework_name)
 
     loaded_modules: list[tuple[str, str]] = []
     for module_path in module_paths:
@@ -121,14 +121,14 @@ def main() -> int:
             module_version = package_version(module_path, module_data)
             loaded_modules.append((module_name, module_version))
             record_dependency(module_path, module_data, lib_name)
-            record_dependency(core_path, core_data, module_name)
+            record_dependency(coordinator_path, coordinator_data, module_name)
         except (OSError, ValueError) as exc:
             errors.append(str(exc))
 
     print("Platform version snapshot:")
     print(f"  {lib_name} {lib_version}")
     print(f"  {framework_name} {framework_version}")
-    print(f"  {package_name(core_path, core_data)} {package_version(core_path, core_data)}")
+    print(f"  {package_name(coordinator_path, coordinator_data)} {package_version(coordinator_path, coordinator_data)}")
     print("  Modules:")
     if loaded_modules:
         for module_name, module_version in loaded_modules:

@@ -16,7 +16,7 @@ deps are never touched:
     # -- submodules-end --
 
 The coordinator module is discovered automatically: any root-level folder whose
-thunderstore.toml has a package name ending in "Core" or "Modpack".
+thunderstore.toml has a package name ending in "_Modpack".
 
 Repos with no remote configured are skipped with a warning - create the GitHub
 repo first, add it as `origin`, then re-run this script.
@@ -34,8 +34,8 @@ import configparser
 import tomllib
 
 
-SETUP_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROOT_DIR       = os.path.dirname(SETUP_DIR)
+TOOLS_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT_DIR       = os.path.dirname(TOOLS_DIR)
 SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
 GITMODULES     = os.path.join(ROOT_DIR, ".gitmodules")
 
@@ -79,7 +79,7 @@ def current_branch(repo_path):
     return branch if branch and branch != "HEAD" else "main"
 
 
-def find_core_toml():
+def find_coordinator_toml():
     """Find the coordinator module's thunderstore.toml in root-level folders."""
     for entry in os.scandir(ROOT_DIR):
         if not entry.is_dir() or entry.name.startswith("."):
@@ -90,7 +90,7 @@ def find_core_toml():
         with open(toml_path, "rb") as f:
             data = tomllib.load(f)
         name = data.get("package", {}).get("name", "")
-        if name.endswith("Core") or name.endswith("Modpack"):
+        if name.endswith("_Modpack"):
             return toml_path
     return None
 
@@ -132,18 +132,18 @@ def current_submodule_names():
     return names
 
 
-def update_core_deps():
+def update_coordinator_deps():
     """Sync the managed submodule block in the coordinator thunderstore.toml."""
     print("Syncing coordinator module dependencies...")
     print("  Detecting coordinator module: scanning root-level folders for a thunderstore.toml")
-    print("  whose package name ends in 'Core' or 'Modpack'...")
+    print("  whose package name ends in '_Modpack'...")
 
-    core_toml = find_core_toml()
-    if not core_toml:
+    coordinator_toml = find_coordinator_toml()
+    if not coordinator_toml:
         print("  WARN  No coordinator module found, skipping dep sync.")
         return
 
-    print(f"  found   {os.path.relpath(core_toml, ROOT_DIR)}")
+    print(f"  found   {os.path.relpath(coordinator_toml, ROOT_DIR)}")
     print(f"  Replacing managed block between '{MARKER_START}' and '{MARKER_END}'")
     print("  (infrastructure deps above the markers are left untouched)")
 
@@ -151,7 +151,7 @@ def update_core_deps():
     lines = [f'{submodule_package_id(name)} = "{submodule_version(name)}"' for name in names]
     block = MARKER_START + "\n" + "\n".join(lines) + "\n" + MARKER_END
 
-    text = open(core_toml, encoding="utf-8").read()
+    text = open(coordinator_toml, encoding="utf-8").read()
 
     if MARKER_START in text:
         # Replace existing managed block
@@ -170,8 +170,8 @@ def update_core_deps():
             # [package.dependencies] is the last section
             new_text = text.rstrip() + "\n" + block + "\n"
 
-    open(core_toml, "w", encoding="utf-8").write(new_text)
-    print(f"  synced  coordinator deps ({len(names)} submodules)  ->  {os.path.relpath(core_toml, ROOT_DIR)}")
+    open(coordinator_toml, "w", encoding="utf-8").write(new_text)
+    print(f"  synced  coordinator deps ({len(names)} submodules)  ->  {os.path.relpath(coordinator_toml, ROOT_DIR)}")
     print()
     print("  NOTE: Run `python ModpackTools/deploy/deploy_all.py --overwrite` to deploy changes to the game.")
 
@@ -300,7 +300,7 @@ def main():
     # Sync coordinator module dependencies
     # -------------------------------------------------------------------------
     print()
-    update_core_deps()
+    update_coordinator_deps()
 
 
 if __name__ == "__main__":

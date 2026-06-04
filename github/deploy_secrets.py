@@ -21,8 +21,8 @@ import sys
 
 
 GITHUB_DIR = os.path.dirname(os.path.abspath(__file__))
-SETUP_DIR = os.path.dirname(GITHUB_DIR)
-ROOT_DIR = os.path.dirname(SETUP_DIR)
+TOOLS_DIR = os.path.dirname(GITHUB_DIR)
+ROOT_DIR = os.path.dirname(TOOLS_DIR)
 
 
 DEFAULT_PACKAGE_SECRET_NAME = "TCLI_AUTH_TOKEN"

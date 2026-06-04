@@ -5,7 +5,7 @@ Usage: python deploy_assets.py [--overwrite] [--profile NAME]
 
 import os
 import shutil
-from deploy_common import discover_mods, base_parser, SETUP_DIR
+from deploy_common import discover_mods, base_parser, TOOLS_DIR
 
 
 ASSETS = ["icon.png", "LICENSE"]
@@ -25,7 +25,7 @@ def main():
         copied_any = False
 
         for asset in ASSETS:
-            source = os.path.join(SETUP_DIR, asset)
+            source = os.path.join(TOOLS_DIR, asset)
             dest = os.path.join(src_dir, asset)
 
             if not os.path.exists(source):

@@ -20,8 +20,8 @@ from pathlib import Path
 
 
 GITHUB_DIR = Path(__file__).resolve().parent
-SETUP_DIR = GITHUB_DIR.parent
-ROOT_DIR = SETUP_DIR.parent
+TOOLS_DIR = GITHUB_DIR.parent
+ROOT_DIR = TOOLS_DIR.parent
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 
 

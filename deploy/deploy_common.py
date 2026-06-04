@@ -10,8 +10,8 @@ import tomllib
 
 
 DEPLOY_DIR = os.path.dirname(os.path.abspath(__file__))
-SETUP_DIR  = os.path.dirname(DEPLOY_DIR)
-ROOT_DIR   = os.path.dirname(SETUP_DIR)
+TOOLS_DIR  = os.path.dirname(DEPLOY_DIR)
+ROOT_DIR   = os.path.dirname(TOOLS_DIR)
 DEFAULT_PROFILE = "h2-dev"
 
 

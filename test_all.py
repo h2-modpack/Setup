@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-SETUP_DIR = Path(__file__).resolve().parent
-ROOT_DIR = SETUP_DIR.parent
+TOOLS_DIR = Path(__file__).resolve().parent
+ROOT_DIR = TOOLS_DIR.parent
 
 
 @dataclass(frozen=True)
@@ -46,9 +46,9 @@ def discover_lua_tests(lua_runner: str) -> list[TestCommand]:
             if test_file.is_file():
                 commands.append(TestCommand(repo.name, repo, [lua_runner, "tests/all.lua"]))
 
-    setup_tests_dir = SETUP_DIR / "tests"
-    if setup_tests_dir.is_dir():
-        for test_file in sorted(setup_tests_dir.glob("test_*.lua")):
+    tools_tests_dir = TOOLS_DIR / "tests"
+    if tools_tests_dir.is_dir():
+        for test_file in sorted(tools_tests_dir.glob("test_*.lua")):
             commands.append(
                 TestCommand(
                     f"ModpackTools/{test_file.name}",
@@ -60,7 +60,7 @@ def discover_lua_tests(lua_runner: str) -> list[TestCommand]:
 
 
 def discover_python_tests() -> list[TestCommand]:
-    tests_dir = SETUP_DIR / "tests"
+    tests_dir = TOOLS_DIR / "tests"
     if not tests_dir.is_dir():
         return []
     return [

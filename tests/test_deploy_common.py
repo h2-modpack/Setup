@@ -11,9 +11,9 @@ from pathlib import Path
 
 
 TEST_DIR = Path(__file__).resolve().parent
-SETUP_DIR = TEST_DIR.parent
+TOOLS_DIR = TEST_DIR.parent
 
-sys.path.insert(0, str(SETUP_DIR / "deploy"))
+sys.path.insert(0, str(TOOLS_DIR / "deploy"))
 import deploy_common  # noqa: E402
 
 

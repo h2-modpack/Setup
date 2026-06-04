@@ -5,8 +5,8 @@ import tempfile
 from pathlib import Path
 
 
-SETUP_DIR = Path(__file__).resolve().parents[1]
-SCAFFOLD_DIR = SETUP_DIR / "scaffold"
+TOOLS_DIR = Path(__file__).resolve().parents[1]
+SCAFFOLD_DIR = TOOLS_DIR / "scaffold"
 if str(SCAFFOLD_DIR) not in sys.path:
     sys.path.insert(0, str(SCAFFOLD_DIR))
 
@@ -156,4 +156,3 @@ def test_new_module_remote_parser_reads_github_org_and_repo() -> None:
         "run-director-modpack",
     )
     assert parse_github_remote("https://example.com/not-github/repo.git") == (None, None)
-
