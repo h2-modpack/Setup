@@ -46,7 +46,15 @@ class ReleaseConfig:
 
     @property
     def module_prefix(self) -> str:
+        return f"{self.namespace}-"
+
+    @property
+    def legacy_module_prefix(self) -> str:
         return f"{self.namespace}-{self.pack_pascal}_"
+
+    def module_prefixes(self) -> list[str]:
+        prefixes = [self.module_prefix, self.legacy_module_prefix]
+        return list(dict.fromkeys(prefixes))
 
 
 @dataclass(frozen=True)
@@ -96,7 +104,7 @@ def discover_module_repos(config: ReleaseConfig) -> list[str]:
     for entry in sorted(submodules.iterdir(), key=lambda path: path.name.lower()):
         if not entry.is_dir():
             continue
-        if not entry.name.startswith(config.module_prefix):
+        if not any(entry.name.startswith(prefix) for prefix in config.module_prefixes()):
             continue
         if not (entry / "thunderstore.toml").is_file() and not (entry / "src").is_dir():
             continue
@@ -130,9 +138,17 @@ def module_aliases(config: ReleaseConfig, repo: str) -> set[str]:
     aliases = {repo}
     namespace_prefix = f"{config.namespace}-"
     if repo.startswith(namespace_prefix):
-        aliases.add(repo[len(namespace_prefix):])
+        package_name = repo[len(namespace_prefix):]
+        aliases.add(package_name)
+        legacy_package_prefix = f"{config.pack_pascal}_"
+        if package_name.startswith(legacy_package_prefix):
+            aliases.add(package_name[len(legacy_package_prefix):])
+        else:
+            aliases.add(f"{legacy_package_prefix}{package_name}")
     if repo.startswith(config.module_prefix):
         aliases.add(repo[len(config.module_prefix):])
+    if repo.startswith(config.legacy_module_prefix):
+        aliases.add(repo[len(config.legacy_module_prefix):])
     return aliases
 
 
@@ -162,8 +178,10 @@ def normalize_release_target(
         candidates.append(target)
     elif target.startswith(config.pack_pascal + "_"):
         candidates.append(f"{config.namespace}-{target}")
+        candidates.append(f"{config.namespace}-{target[len(config.pack_pascal) + 1:]}")
     else:
         candidates.append(f"{config.module_prefix}{target}")
+        candidates.append(f"{config.legacy_module_prefix}{target}")
 
     repo_map = _casefold_map(available_module_repos)
     for candidate in candidates:
@@ -171,7 +189,18 @@ def normalize_release_target(
         if repo:
             return ("module", repo)
 
-    normalized = candidates[-1]
+    uses_legacy_repos = any(repo.startswith(config.legacy_module_prefix) for repo in available_module_repos)
+    if target.startswith(config.namespace + "-"):
+        normalized = target
+    elif uses_legacy_repos:
+        if target.startswith(config.pack_pascal + "_"):
+            normalized = f"{config.namespace}-{target}"
+        else:
+            normalized = f"{config.legacy_module_prefix}{target}"
+    elif target.startswith(config.pack_pascal + "_"):
+        normalized = f"{config.namespace}-{target[len(config.pack_pascal) + 1:]}"
+    else:
+        normalized = f"{config.module_prefix}{target}"
     raise ReleaseError(
         "Unknown release target",
         f"{normalized} is not a checked-out module repo.",

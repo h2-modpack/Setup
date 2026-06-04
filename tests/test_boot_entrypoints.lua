@@ -61,19 +61,57 @@ local function readFile(path)
     return content
 end
 
-local function escapePattern(value)
-    return (string.gsub(value, "([^%w])", "%%%1"))
+local function tryReadFile(path)
+    local file = io.open(path, "r")
+    if not file then
+        return nil
+    end
+    local content = file:read("*a")
+    file:close()
+    return content
+end
+
+local function readTomlPackage(path)
+    local content = tryReadFile(path)
+    if not content then
+        return nil
+    end
+    local namespace = string.match(content, "\nnamespace%s*=%s*['\"]([^'\"]+)['\"]")
+        or string.match(content, "^namespace%s*=%s*['\"]([^'\"]+)['\"]")
+    local name = string.match(content, "\nname%s*=%s*['\"]([^'\"]+)['\"]")
+        or string.match(content, "^name%s*=%s*['\"]([^'\"]+)['\"]")
+    if not namespace or not name then
+        return nil
+    end
+    return {
+        namespace = namespace,
+        name = name,
+        fullName = namespace .. "-" .. name,
+    }
+end
+
+local function moduleIdFromPackageName(packageName, packPascal)
+    local legacyPrefix = packPascal .. "_"
+    if string.sub(packageName, 1, #legacyPrefix) == legacyPrefix then
+        return string.sub(packageName, #legacyPrefix + 1)
+    end
+    return packageName
 end
 
 local function discoverPack()
     local cores = {}
     for _, dir in ipairs(listDirs(".")) do
-        local packPascal = string.match(dir, "^adamant%-(.+)_Core$")
-            or string.match(dir, "^adamant%-(.+)_Modpack$")
+        local package = readTomlPackage(dir .. "/thunderstore.toml")
+        local packPascal
+        if package then
+            packPascal = string.match(package.name, "^(.+)_Core$")
+                or string.match(package.name, "^(.+)_Modpack$")
+        end
         if packPascal then
             cores[#cores + 1] = {
                 dir = dir,
                 packPascal = packPascal,
+                package = package,
             }
         end
     end
@@ -85,14 +123,15 @@ local function discoverPack()
     assertTruthy(packId, "Coordinator src/main.lua must declare PACK_ID")
 
     local modules = {}
-    local modulePrefix = "adamant-" .. core.packPascal .. "_"
-    local modulePattern = "^" .. escapePattern(modulePrefix) .. "(.+)$"
     for _, dir in ipairs(listDirs("Submodules")) do
-        local moduleId = string.match(dir, modulePattern)
-        if moduleId then
+        local mainPath = "Submodules/" .. dir .. "/src/main.lua"
+        local main = tryReadFile(mainPath)
+        local package = readTomlPackage("Submodules/" .. dir .. "/thunderstore.toml")
+        local modulePackId = main and string.match(main, "PACK_ID%s*=%s*['\"]([^'\"]+)['\"]")
+        if package and modulePackId == packId then
             modules[#modules + 1] = {
                 dir = dir,
-                id = moduleId,
+                id = moduleIdFromPackageName(package.name, core.packPascal),
             }
         end
     end

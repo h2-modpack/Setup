@@ -6,21 +6,21 @@ identity (namespace, name, pack-id, website URL), wires git hooks,
 commits the filled files, pushes, and registers it as a submodule.
 
 Usage (run from the shell repo root):
-  python Setup/scaffold/new_module.py --name SkipPausingEncounters --pack-id speedrun --namespace adamant --org my-org
-  python Setup/scaffold/new_module.py --name GameplayQoL --title "Gameplay QoL" --pack-id speedrun --namespace adamant --org my-org
-  python Setup/scaffold/new_module.py --name GameplayQoL --package-name Gameplay_QoL --title "Gameplay QoL" --pack-id speedrun --namespace adamant --org my-org
+  python Setup/scaffold/new_module.py --name LiveSplit --pack-id speedrun --namespace adamantSpeedrun --org my-org
+  python Setup/scaffold/new_module.py --name GameplayQoL --title "Gameplay QoL" --pack-id speedrun --namespace adamantSpeedrun --org my-org
+  python Setup/scaffold/new_module.py --name GameplayQoL --package-name Gameplay_QoL --title "Gameplay QoL" --pack-id speedrun --namespace adamantSpeedrun --org my-org
 
   --name      Package-safe PascalCase module id (e.g. SkipPausingEncounters, GameplayQoL)
   --package-name Thunderstore/repo package suffix (optional; e.g. Gameplay_QoL)
   --title     Human display name       (optional; e.g. "Gameplay QoL")
   --pack-id   Pack this module belongs to (e.g. speedrun) - sets modpack field
-  --namespace Thunderstore namespace   (e.g. adamant)
+  --namespace Pack Thunderstore namespace/team (e.g. adamantSpeedrun)
   --org       GitHub org               (e.g. h2-modpack)
 
 What will be created:
-  GitHub repo : {org}/{ns}-{PackId}_{name}      e.g. h2pack-speedrun/adamant-Speedrun_SkipPausingEncounters
-  Local folder: Submodules/{ns}-{PackId}_{name} e.g. Submodules/adamant-Speedrun_SkipPausingEncounters
-  Thunderstore: {ns}-{PackId}_{name}             e.g. adamant-Speedrun_SkipPausingEncounters
+  GitHub repo : {org}/{pack-ns}-{name}      e.g. h2pack-speedrun/adamantSpeedrun-LiveSplit
+  Local folder: Submodules/{pack-ns}-{name} e.g. Submodules/adamantSpeedrun-LiveSplit
+  Thunderstore: {pack-ns}-{name}            e.g. adamantSpeedrun-LiveSplit
 
 GitHub repo, local folder, and Thunderstore ID are all the same string so
 clone-then-deploy works without any manual renaming.
@@ -84,6 +84,10 @@ def validate_package_name(name):
         raise ValueError("--package-name must contain only letters, numbers, and underscores")
     if name.startswith("_") or name.endswith("_") or "__" in name:
         raise ValueError("--package-name must not start/end with '_' or contain repeated underscores")
+
+
+def module_repo_name(namespace, package_name):
+    return f"{namespace}-{package_name}"
 
 
 def normalize_title(title):
@@ -296,7 +300,8 @@ def main():
     parser.add_argument("--package-name", default=None, help="Thunderstore/repo package suffix (optional; e.g. Gameplay_QoL)")
     parser.add_argument("--title",     default=None,   help="Human display name (optional; e.g. 'Gameplay QoL')")
     parser.add_argument("--pack-id",   required=True,  help="Pack this module belongs to (e.g. speedrun)")
-    parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
+    parser.add_argument("--namespace", required=True,  help="Pack Thunderstore namespace/team (e.g. 'adamantSpeedrun')")
+    parser.add_argument("--shared-namespace", default="adamant", help="Shared infrastructure namespace for Lib deps (default: adamant)")
     parser.add_argument("--org",       required=True,  help="GitHub org (e.g. 'h2-modpack')")
     parser.add_argument("--desc",      default=None,   help="Short description for Thunderstore and README (optional)")
     args = parser.parse_args()
@@ -311,11 +316,10 @@ def main():
         sys.exit(1)
 
     # GitHub repo, local folder, and Thunderstore ID are all the same string.
-    repo_name      = f"{args.namespace}-{to_pascal(args.pack_id)}_{package_name}"      # adamant-Speedrun_Skip_Pausing_Encounters
+    repo_name      = module_repo_name(args.namespace, package_name)      # adamantSpeedrun-LiveSplit
     website_url    = f"https://github.com/{args.org}/{repo_name}"
     local_path     = os.path.join(SUBMODULES_DIR, repo_name)
     submodule_rel  = f"Submodules/{repo_name}"
-    pack_pascal    = to_pascal(args.pack_id)
     pack_title     = " ".join(w.capitalize() for w in args.pack_id.replace("-", "_").split("_"))  # "run-director" -> "Run Director"
     shell_repo     = f"{args.pack_id}-modpack"
     shell_url      = f"https://github.com/{args.org}/{shell_repo}"
@@ -328,6 +332,8 @@ def main():
   Package suffix : {package_name}
   Display title  : {module_title}
   Pack ID        : {args.pack_id}
+  Pack namespace : {args.namespace}
+  Shared deps    : {args.shared_namespace}-ModpackLib
   Thunderstore   : {repo_name}
   GitHub repo    : {args.org}/{repo_name}
   Local folder   : {submodule_rel}
@@ -381,13 +387,17 @@ def main():
     toml_path = os.path.join(local_path, "thunderstore.toml")
     replace_in_file(toml_path, {
         'namespace = "adamant"':              f'namespace = "{args.namespace}"',
-        'name = "SCAFFOLD_TODO_ModName"':              f'name = "{pack_pascal}_{package_name}"',
+        'name = "SCAFFOLD_TODO_ModName"':              f'name = "{package_name}"',
         '"SCAFFOLD_TODO: Short description of the mod"': f'"{args.desc or "SCAFFOLD_TODO: description for " + args.name}"',
         'https://github.com/h2-modpack/h2-modpack-SCAFFOLD_TODO_ModName': website_url,
         'readme = "./src/README.md"':         'readme = "./README.md"',
         'readme = "./THUNDERSTORE_README.md"': 'readme = "./README.md"',
     })
-    replace_dependency_version(toml_path, "adamant-ModpackLib", lib_version)
+    if args.shared_namespace != "adamant":
+        replace_in_file(toml_path, {
+            "adamant-ModpackLib": f"{args.shared_namespace}-ModpackLib",
+        })
+    replace_dependency_version(toml_path, f"{args.shared_namespace}-ModpackLib", lib_version)
 
     readme_path = os.path.join(local_path, "README.md")
     with open(readme_path, "w", encoding="utf-8", newline="\n") as f:

@@ -11,6 +11,7 @@ if str(SCAFFOLD_DIR) not in sys.path:
     sys.path.insert(0, str(SCAFFOLD_DIR))
 
 from new_module import (  # noqa: E402
+    module_repo_name,
     normalize_title,
     pascal_to_title,
     validate_current_lib_contract,
@@ -149,6 +150,11 @@ def test_new_module_package_name_validation_allows_thunderstore_word_breaks() ->
             pass
         else:
             raise AssertionError(f"invalid package name accepted: {value}")
+
+
+def test_new_module_repo_name_uses_pack_namespace_without_pack_prefix() -> None:
+    assert module_repo_name("adamantSpeedrun", "LiveSplit") == "adamantSpeedrun-LiveSplit"
+    assert module_repo_name("adamantRunDirector", "Gameplay_QoL") == "adamantRunDirector-Gameplay_QoL"
 
 
 def test_new_module_title_normalization_is_display_only() -> None:

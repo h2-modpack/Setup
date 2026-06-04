@@ -81,7 +81,8 @@ jobs:
 
       - name: Validate module sources
         run: |
-          for repo in Submodules/{{NAMESPACE}}-{{PACK_PASCAL}}_*; do
+          shopt -s nullglob
+          for repo in Submodules/{{NAMESPACE}}-*; do
             if [ ! -d "$repo/src" ]; then
               continue
             fi

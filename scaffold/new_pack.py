@@ -5,7 +5,7 @@ Creates the coordinator GitHub repo automatically via the gh CLI.
 Clone Setup next to where you want the new pack, then run:
 
   git clone https://github.com/h2-modpack/Setup.git
-  python Setup/scaffold/new_pack.py --pack-id "speedrun" --namespace mynamespace --org my-org
+  python Setup/scaffold/new_pack.py --pack-id "speedrun" --namespace adamantSpeedrun --org my-org
 
 The shell repo is created as a sibling of the Setup folder:
   ../speedrun-modpack/
@@ -16,10 +16,10 @@ Naming convention:
   --pack-id should be a single lowercase word (e.g. "speedrun", "hades", "pvp").
   Multi-word pack IDs work but produce longer coordinator names.
 
-  Given --pack-id "speedrun" --namespace "adamant":
+  Given --pack-id "speedrun" --namespace "adamantSpeedrun":
     Shell repo:        speedrun-modpack
-    Coordinator ID:    adamant-Speedrun_Modpack
-    Coordinator repo:  adamant-Speedrun_Modpack
+    Coordinator ID:    adamantSpeedrun-Speedrun_Modpack
+    Coordinator repo:  adamantSpeedrun-Speedrun_Modpack
     Lib folder:        adamant-ModpackLib
     Framework folder:  adamant-ModpackFramework
 
@@ -94,8 +94,8 @@ LuaENVY-ENVY = "1.2.0"
 SGG_Modding-Chalk = "2.1.1"
 SGG_Modding-ReLoad = "1.0.2"
 SGG_Modding-ModUtil = "4.0.1"
-adamant-ModpackLib = "{{LIB_VERSION}}"
-adamant-ModpackFramework = "{{FRAMEWORK_VERSION}}"
+{{SHARED_NAMESPACE}}-ModpackLib = "{{LIB_VERSION}}"
+{{SHARED_NAMESPACE}}-ModpackFramework = "{{FRAMEWORK_VERSION}}"
 
 # -- submodules-start --
 
@@ -169,7 +169,8 @@ def read_package_version(toml_path):
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new modpack shell repo")
     parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.createPack - single word preferred (e.g. 'speedrun')")
-    parser.add_argument("--namespace", required=True,  help="Thunderstore namespace (e.g. 'adamant')")
+    parser.add_argument("--namespace", required=True,  help="Pack Thunderstore namespace/team (e.g. 'adamantSpeedrun')")
+    parser.add_argument("--shared-namespace", default="adamant", help="Shared infrastructure namespace for Lib/Framework deps (default: adamant)")
     parser.add_argument("--title",     default=None,   help="Window title (default: title-case of pack-id)")
     parser.add_argument("--org",       required=True,        help="GitHub org (e.g. 'my-org')")
     args = parser.parse_args()
@@ -180,7 +181,7 @@ def main():
 
     shell_repo       = f"{args.pack_id}-modpack"
     shell_url        = f"https://github.com/{args.org}/{shell_repo}.git"
-    coordinator_id   = f"{args.namespace}-{name}"                          # adamant-Speedrun_Modpack
+    coordinator_id   = f"{args.namespace}-{name}"                          # adamantSpeedrun-Speedrun_Modpack
     coordinator_repo = coordinator_id                                       # GitHub repo name = Thunderstore ID = local folder
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
 
@@ -189,6 +190,8 @@ def main():
   ---------------------------------------------
   Window title   : {title}
   Pack ID        : {args.pack_id}
+  Pack namespace : {args.namespace}
+  Shared deps    : {args.shared_namespace}-ModpackLib, {args.shared_namespace}-ModpackFramework
   Local output   : {output}
 
   GitHub repos (will be created under {args.org}/)
@@ -266,6 +269,7 @@ def main():
         ORG          = args.org,
         SHELL_REPO   = shell_repo,
         COORD_REPO   = coordinator_repo,
+        SHARED_NAMESPACE = args.shared_namespace,
         LIB_VERSION  = lib_version,
         FRAMEWORK_VERSION = framework_version,
     )
@@ -299,8 +303,8 @@ def main():
             "SGG_Modding-Chalk-2.1.1",
             "SGG_Modding-ReLoad-1.0.2",
             "SGG_Modding-ModUtil-4.0.1",
-            f"adamant-ModpackLib-{lib_version}",
-            f"adamant-ModpackFramework-{framework_version}",
+            f"{args.shared_namespace}-ModpackLib-{lib_version}",
+            f"{args.shared_namespace}-ModpackFramework-{framework_version}",
         ],
         "website_url": f"https://github.com/{args.org}/{coordinator_repo}",
         "FullName": coordinator_id,

@@ -15,31 +15,33 @@ Setup is the shared toolbelt for a pack workspace:
 
 ## Create A New Pack
 
-Use one GitHub org per modpack. `new_pack.py` expects that org to already exist; it does not create the org.
+Use one GitHub org and one Thunderstore team/namespace per modpack. `new_pack.py` expects the GitHub org to already exist; it does not create the org.
 
 Create the empty GitHub org first, then scaffold the pack from a standalone Setup clone:
 
 ```bash
 git clone https://github.com/h2-modpack/Setup
-python Setup/scaffold/new_pack.py --pack-id "my-pack" --namespace mynamespace --org my-org
+python Setup/scaffold/new_pack.py --pack-id "my-pack" --namespace adamantMyPack --org adamantMyPack
 cd ../my-pack-modpack
 python Setup/deploy/deploy_all.py --overwrite
 ```
 
 `new_pack.py` creates the shell repo and coordinator repo inside the org, wires Lib, Framework, coordinator, and Setup as submodules, and pushes the initial shell commit. The standalone Setup clone is deleted at the end because Setup re-enters the shell as a submodule.
 
-Shared Lib and Framework live in the shared `h2-modpack` org and are managed separately from each pack org.
+Pack-owned Thunderstore packages use the pack namespace. For example, `--pack-id speedrun --namespace adamantSpeedrun` creates `adamantSpeedrun-Speedrun_Modpack`. Shared Lib and Framework stay under the shared `adamant` Thunderstore namespace and the shared `h2-modpack` GitHub org.
 
 ## Add A Module
 
 From the shell repo root:
 
 ```bash
-python Setup/scaffold/new_module.py --name MyModName --pack-id my-pack --namespace adamant --org my-org
+python Setup/scaffold/new_module.py --name MyModName --pack-id my-pack --namespace adamantMyPack --org adamantMyPack
 python Setup/deploy/deploy_all.py --overwrite
 ```
 
 `new_module.py` creates the GitHub repo from the module template, fills in module identity, commits the initial repo, registers it under `Submodules/`, and syncs the coordinator dependency block.
+
+Generated module package names do not include the pack prefix because the pack namespace already carries that identity. For example, `--namespace adamantSpeedrun --name LiveSplit` creates `adamantSpeedrun-LiveSplit`.
 
 Generated modules use the standard module template contract: `main.lua` plus `mods/data.lua`, `mods/logic.lua`, and `mods/ui.lua`, safe module creation/activation, host-owned hook registration, and the standard module CI baseline.
 
