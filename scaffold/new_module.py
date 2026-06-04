@@ -1,5 +1,5 @@
 """
-Scaffold a new module repo from h2-modpack-template.
+Scaffold a new module repo from ModpackModuleTemplate.
 
 Creates the GitHub repo, clones it into Submodules/, fills in the module
 identity, wires git hooks, commits the filled files, pushes, and registers it
@@ -42,7 +42,7 @@ from setup_common import run
 SETUP_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR       = os.path.dirname(SETUP_DIR)
 SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
-TEMPLATE_REPO  = "h2-modpack/h2-modpack-template"
+TEMPLATE_REPO  = "h2-modpack/ModpackModuleTemplate"
 
 
 def validate_package_id(value):
@@ -230,7 +230,7 @@ def validate_current_lib_contract(local_path):
         raise RuntimeError(
             "External module template does not match the scaffold script:\n"
             f"  - {details}\n"
-            "Update h2-modpack/h2-modpack-template before scaffolding this module."
+            "Update h2-modpack/ModpackModuleTemplate before scaffolding this module."
         )
 
     main_content = read_file(main_path)
@@ -312,7 +312,7 @@ def validate_current_lib_contract(local_path):
         raise RuntimeError(
             "External module template does not match the scaffold script:\n"
             f"  - {details}\n"
-            "Update h2-modpack/h2-modpack-template before scaffolding this module."
+            "Update h2-modpack/ModpackModuleTemplate before scaffolding this module."
         )
 
 
