@@ -36,7 +36,6 @@ import subprocess
 import re
 import tomllib
 from register_submodules import update_coordinator_deps
-from setup_common import run
 
 
 TOOLS_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -172,6 +171,12 @@ def discover_github_shell():
 # =============================================================================
 # HELPERS
 # =============================================================================
+
+def run(cmd, cwd=None):
+    """Print and execute a command, raising on failure."""
+    print(f"  $ {' '.join(cmd)}")
+    subprocess.run(cmd, cwd=cwd, check=True)
+
 
 def replace_in_file(path, replacements):
     with open(path, "r", encoding="utf-8") as f:
