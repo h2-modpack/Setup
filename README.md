@@ -7,6 +7,10 @@ This repo is usually checked out as `ModpackTools/` inside a shell repo. Use
 [`ModpackBootstrap`](https://github.com/h2-modpack/ModpackBootstrap) for the
 one-time creation of a new pack workspace.
 
+New users should start with the
+[`ModpackBootstrap` Getting Started guide](https://github.com/h2-modpack/ModpackBootstrap/blob/main/docs/GETTING_STARTED.md),
+then return here for ongoing pack maintenance commands.
+
 ## What This Handles
 
 ModpackTools is the ongoing toolbelt for an existing pack workspace:
