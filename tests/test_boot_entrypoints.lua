@@ -90,27 +90,18 @@ local function readTomlPackage(path)
     }
 end
 
-local function moduleIdFromPackageName(packageName, packPascal)
-    local legacyPrefix = packPascal .. "_"
-    if string.sub(packageName, 1, #legacyPrefix) == legacyPrefix then
-        return string.sub(packageName, #legacyPrefix + 1)
-    end
-    return packageName
-end
-
 local function discoverPack()
     local cores = {}
     for _, dir in ipairs(listDirs(".")) do
         local package = readTomlPackage(dir .. "/thunderstore.toml")
-        local packPascal
+        local coordinatorPackagePrefix
         if package then
-            packPascal = string.match(package.name, "^(.+)_Core$")
-                or string.match(package.name, "^(.+)_Modpack$")
+            coordinatorPackagePrefix = string.match(package.name, "^(.+)_Modpack$")
         end
-        if packPascal then
+        if coordinatorPackagePrefix then
             cores[#cores + 1] = {
                 dir = dir,
-                packPascal = packPascal,
+                coordinatorPackagePrefix = coordinatorPackagePrefix,
                 package = package,
             }
         end
@@ -131,7 +122,7 @@ local function discoverPack()
         if package and modulePackId == packId then
             modules[#modules + 1] = {
                 dir = dir,
-                id = moduleIdFromPackageName(package.name, core.packPascal),
+                id = package.name,
             }
         end
     end

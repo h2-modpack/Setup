@@ -27,7 +27,7 @@ Use these docs as the coordinator contract:
 
 `DEFAULT_PROFILES`: shipped presets. To add or update a preset, edit `DEFAULT_PROFILES` in `src/main.lua`. Get the hash string from the Profiles tab export field in game.
 
-`FRAMEWORK_OPTS.moduleOrder`: optional module tab ordering by Lib module id. Modules not listed still appear after listed modules.
+`FRAMEWORK_OPTS.moduleOrder`: optional module tab ordering by package id. Package ids are also the Lib/Framework module ids. Modules not listed still appear after listed modules.
 
 `config.lua`: Chalk schema containing `ModEnabled`, `DebugMode`, and `Profiles`. The Profiles array length is passed to `Framework.createPack(...)` and determines the number of saved profile slots rendered in the UI.
 

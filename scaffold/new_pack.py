@@ -183,13 +183,6 @@ def coordinator_id(team, coordinator_package):
     return f"{team}-{coordinator_package}"
 
 
-def coordinator_alias_prefix(coordinator_package):
-    for suffix in ("_Modpack", "_Core"):
-        if coordinator_package.endswith(suffix):
-            return coordinator_package[:-len(suffix)]
-    return coordinator_package
-
-
 def read_package_version(toml_path):
     """Read package.versionNumber from a Thunderstore config."""
     with open(toml_path, "rb") as f:
@@ -322,7 +315,6 @@ def main():
     subs = dict(
         COORD_ID     = coord_id,
         PACK_ID      = args.pack_id,
-        LEGACY_PACKAGE_PREFIX = coordinator_alias_prefix(name),
         WINDOW_TITLE = title,
         NAMESPACE    = args.team,
         NAME         = name,

@@ -2,28 +2,30 @@
 Scaffold a new module repo from h2-modpack-template.
 
 Creates the GitHub repo, clones it into Submodules/, fills in the module
-identity (namespace, name, pack-id, website URL), wires git hooks,
-commits the filled files, pushes, and registers it as a submodule.
+identity, wires git hooks, commits the filled files, pushes, and registers it
+as a submodule.
 
 Usage (run from the shell repo root):
-  python Setup/scaffold/new_module.py --name LiveSplit --pack-id speedrun --namespace adamantSpeedrun --org my-org
-  python Setup/scaffold/new_module.py --name GameplayQoL --title "Gameplay QoL" --pack-id speedrun --namespace adamantSpeedrun --org my-org
-  python Setup/scaffold/new_module.py --name GameplayQoL --package-name Gameplay_QoL --title "Gameplay QoL" --pack-id speedrun --namespace adamantSpeedrun --org my-org
+  python Setup/scaffold/new_module.py --package-id LiveSplit --title "LiveSplit"
+  python Setup/scaffold/new_module.py --package-id Gameplay_QoL --title "Gameplay QoL"
 
-  --name      Package-safe PascalCase module id (e.g. SkipPausingEncounters, GameplayQoL)
-  --package-name Thunderstore/repo package suffix (optional; e.g. Gameplay_QoL)
-  --title     Human display name       (optional; e.g. "Gameplay QoL")
-  --pack-id   Pack this module belongs to (e.g. speedrun) - sets modpack field
-  --namespace Pack Thunderstore namespace/team (e.g. adamantSpeedrun)
-  --org       GitHub org               (e.g. h2-modpack)
+  --package-id Thunderstore package suffix and Lib/Framework module id.
+  --title      Human display name.
+
+Normally the script discovers pack identity from the shell repo:
+  Pack ID      : coordinator src/main.lua PACK_ID
+  Pack name    : coordinator src/main.lua WINDOW_TITLE
+  Team         : coordinator thunderstore.toml package.namespace
+  GitHub org   : shell repo origin remote
 
 What will be created:
-  GitHub repo : {org}/{pack-ns}-{name}      e.g. h2pack-speedrun/adamantSpeedrun-LiveSplit
-  Local folder: Submodules/{pack-ns}-{name} e.g. Submodules/adamantSpeedrun-LiveSplit
-  Thunderstore: {pack-ns}-{name}            e.g. adamantSpeedrun-LiveSplit
+  GitHub repo : {org}/{team}-{package-id}      e.g. h2pack-speedrun/adamantSpeedrun-LiveSplit
+  Local folder: Submodules/{team}-{package-id} e.g. Submodules/adamantSpeedrun-LiveSplit
+  Thunderstore: {team}-{package-id}            e.g. adamantSpeedrun-LiveSplit
 
-GitHub repo, local folder, and Thunderstore ID are all the same string so
-clone-then-deploy works without any manual renaming.
+GitHub repo, local folder, Thunderstore ID, and plugin GUID are all the same
+string so clone-then-deploy works without any manual renaming. The package id
+is also used as the Lib/Framework module id.
 """
 
 import os
@@ -41,64 +43,130 @@ SETUP_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR       = os.path.dirname(SETUP_DIR)
 SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
 TEMPLATE_REPO  = "h2-modpack/h2-modpack-template"
-KNOWN_ACRONYMS = ("QoL", "LrT", "RTA", "IGT")
 
 
-def to_pascal(s):
-    """Convert a kebab/snake/lower string to PascalCase. 'speedrun' -> 'Speedrun', 'my-pack' -> 'MyPack'."""
-    return "".join(word.capitalize() for word in s.replace("-", " ").replace("_", " ").split())
+def validate_package_id(value):
+    """Thunderstore package suffix and Lib/Framework module id."""
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value or ""):
+        raise ValueError("--package-id must start with a letter and contain only letters, numbers, and underscores")
+    if value.startswith("_") or value.endswith("_") or "__" in value:
+        raise ValueError("--package-id must not start/end with '_' or contain repeated underscores")
 
 
-def pascal_to_title(s):
-    """Convert PascalCase / acronym-ish names to a readable title."""
-    tokens = []
-    index = 0
-    while index < len(s):
-        acronym = next((item for item in KNOWN_ACRONYMS if s.startswith(item, index)), None)
-        if acronym:
-            tokens.append(acronym)
-            index += len(acronym)
-            continue
-
-        match = re.match(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|$)|[0-9]+", s[index:])
-        if match:
-            tokens.append(match.group(0))
-            index += len(match.group(0))
-            continue
-
-        tokens.append(s[index])
-        index += 1
-
-    return " ".join(tokens).strip() or s
+def validate_team(value):
+    if not re.fullmatch(r"[A-Za-z0-9_]+", value or ""):
+        raise ValueError("--team must contain only letters, numbers, and underscores")
+    if value.startswith("_") or value.endswith("_"):
+        raise ValueError("--team must not start or end with '_'")
 
 
-def validate_module_name(name):
-    """Lua/Lib module id: no spaces, PascalCase-ish."""
-    if not re.fullmatch(r"[A-Z][A-Za-z0-9]*", name or ""):
-        raise ValueError("--name must be package-safe PascalCase without spaces (e.g. BossRush, GameplayQoL)")
+def validate_org(value):
+    if not re.fullmatch(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", value or ""):
+        raise ValueError("--org must contain letters, numbers, and single hyphen separators only")
 
 
-def validate_package_name(name):
-    """Thunderstore package-name component. Underscores are preferred word separators."""
-    if not re.fullmatch(r"[A-Za-z0-9_]+", name or ""):
-        raise ValueError("--package-name must contain only letters, numbers, and underscores")
-    if name.startswith("_") or name.endswith("_") or "__" in name:
-        raise ValueError("--package-name must not start/end with '_' or contain repeated underscores")
+def validate_pack_id(value):
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value or ""):
+        raise ValueError("--pack-id must contain lowercase letters, numbers, and single hyphen separators only")
 
 
-def module_repo_name(namespace, package_name):
-    return f"{namespace}-{package_name}"
-
-
-def normalize_title(title):
-    if title is None:
-        return None
-    normalized = title.strip()
+def validate_single_line(value, label):
+    normalized = (value or "").strip()
     if not normalized:
-        raise ValueError("--title must not be empty when provided")
+        raise ValueError(f"{label} must not be empty")
     if "\n" in normalized or "\r" in normalized:
-        raise ValueError("--title must be a single line")
+        raise ValueError(f"{label} must be a single line")
     return normalized
+
+
+def module_repo_name(team, package_id):
+    return f"{team}-{package_id}"
+
+
+def read_package(toml_path):
+    with open(toml_path, "rb") as f:
+        data = tomllib.load(f)
+    package = data.get("package", {})
+    namespace = package.get("namespace")
+    name = package.get("name")
+    if not namespace or not name:
+        raise RuntimeError(f"Missing package.namespace or package.name in {toml_path}")
+    return package
+
+
+def read_package_version(toml_path):
+    """Read package.versionNumber from a Thunderstore config."""
+    package = read_package(toml_path)
+    version = package.get("versionNumber")
+    if not version:
+        raise RuntimeError(f"Missing package.versionNumber in {toml_path}")
+    return version
+
+
+def read_file(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def extract_lua_string(content, name, path):
+    pattern = rf"\b{name}\s*=\s*['\"]([^'\"]+)['\"]"
+    match = re.search(pattern, content)
+    if not match:
+        raise RuntimeError(f"Could not find {name} string in {path}")
+    return match.group(1)
+
+
+def discover_coordinator():
+    hits = []
+    for name in sorted(os.listdir(ROOT_DIR)):
+        path = os.path.join(ROOT_DIR, name)
+        toml_path = os.path.join(path, "thunderstore.toml")
+        main_path = os.path.join(path, "src", "main.lua")
+        if not os.path.isdir(path) or not os.path.isfile(toml_path) or not os.path.isfile(main_path):
+            continue
+        package = read_package(toml_path)
+        package_name = package["name"]
+        if package_name.endswith("_Modpack"):
+            hits.append({
+                "dir": name,
+                "toml_path": toml_path,
+                "main_path": main_path,
+                "team": package["namespace"],
+                "package": package_name,
+            })
+
+    if len(hits) != 1:
+        found = ", ".join(hit["dir"] for hit in hits) or "none"
+        raise RuntimeError(f"Expected exactly one coordinator repo in shell root, found: {found}")
+
+    hit = hits[0]
+    main = read_file(hit["main_path"])
+    return {
+        "pack_id": extract_lua_string(main, "PACK_ID", hit["main_path"]),
+        "pack_name": extract_lua_string(main, "WINDOW_TITLE", hit["main_path"]),
+        "team": hit["team"],
+        "coordinator_package": hit["package"],
+    }
+
+
+def parse_github_remote(remote):
+    match = re.search(r"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$", remote.strip())
+    if not match:
+        return None, None
+    return match.group(1), match.group(2)
+
+
+def discover_github_shell():
+    result = subprocess.run(
+        ["git", "config", "--get", "remote.origin.url"],
+        cwd=ROOT_DIR,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None, os.path.basename(ROOT_DIR)
+    org, repo = parse_github_remote(result.stdout)
+    return org, repo or os.path.basename(ROOT_DIR)
 
 
 # =============================================================================
@@ -165,12 +233,9 @@ def validate_current_lib_contract(local_path):
             "Update h2-modpack/h2-modpack-template before scaffolding this module."
         )
 
-    with open(main_path, "r", encoding="utf-8") as f:
-        main_content = f.read()
-    with open(data_path, "r", encoding="utf-8") as f:
-        data_content = f.read()
-    with open(logic_path, "r", encoding="utf-8") as f:
-        logic_content = f.read()
+    main_content = read_file(main_path)
+    data_content = read_file(data_path)
+    logic_content = read_file(logic_path)
 
     hits = []
     main_markers = [
@@ -255,20 +320,10 @@ def git(args, cwd=None):
     return subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
 
 
-def read_package_version(toml_path):
-    """Read package.versionNumber from a Thunderstore config."""
-    with open(toml_path, "rb") as f:
-        data = tomllib.load(f)
-    version = data.get("package", {}).get("versionNumber")
-    if not version:
-        raise RuntimeError(f"Missing package.versionNumber in {toml_path}")
-    return version
-
-
 MODULE_README = """\
 # {title}
 
-{description}
+SCAFFOLD_TODO: Short description of what this module does.
 
 Part of the [{pack_title} modpack]({shell_url}).
 
@@ -296,46 +351,57 @@ Install using r2modman. In game, open the {pack_title} menu and configure this m
 
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new module repo from template")
-    parser.add_argument("--name",      required=True,  help="PascalCase module name (e.g. SkipPausingEncounters)")
-    parser.add_argument("--package-name", default=None, help="Thunderstore/repo package suffix (optional; e.g. Gameplay_QoL)")
-    parser.add_argument("--title",     default=None,   help="Human display name (optional; e.g. 'Gameplay QoL')")
-    parser.add_argument("--pack-id",   required=True,  help="Pack this module belongs to (e.g. speedrun)")
-    parser.add_argument("--namespace", required=True,  help="Pack Thunderstore namespace/team (e.g. 'adamantSpeedrun')")
-    parser.add_argument("--shared-namespace", default="adamant", help="Shared infrastructure namespace for Lib deps (default: adamant)")
-    parser.add_argument("--org",       required=True,  help="GitHub org (e.g. 'h2-modpack')")
-    parser.add_argument("--desc",      default=None,   help="Short description for Thunderstore and README (optional)")
+    parser.add_argument("--package-id", required=True, help="Thunderstore package suffix and Lib/Framework module id")
+    parser.add_argument("--title", required=True, help="Human display name (e.g. 'Gameplay QoL')")
+    parser.add_argument("--pack-id", default=None, help="Override discovered pack id")
+    parser.add_argument("--pack-name", default=None, help="Override discovered pack display name")
+    parser.add_argument("--team", default=None, help="Override discovered pack Thunderstore team")
+    parser.add_argument("--shared-team", default="adamant", help="Shared infrastructure team for Lib deps (default: adamant)")
+    parser.add_argument("--org", default=None, help="Override discovered GitHub org")
     args = parser.parse_args()
 
     try:
-        validate_module_name(args.name)
-        package_name = args.package_name or args.name
-        validate_package_name(package_name)
-        module_title = normalize_title(args.title) or pascal_to_title(args.name)
-    except ValueError as e:
+        validate_package_id(args.package_id)
+        module_title = validate_single_line(args.title, "--title")
+        validate_team(args.shared_team)
+
+        coordinator = discover_coordinator()
+        discovered_org, shell_repo = discover_github_shell()
+
+        pack_id = args.pack_id or coordinator["pack_id"]
+        pack_name = args.pack_name or coordinator["pack_name"]
+        team = args.team or coordinator["team"]
+        org = args.org or discovered_org
+
+        validate_pack_id(pack_id)
+        pack_title = validate_single_line(pack_name, "--pack-name")
+        validate_team(team)
+        if not org:
+            raise ValueError("--org is required when the shell repo origin is not a GitHub remote")
+        validate_org(org)
+    except (ValueError, RuntimeError) as e:
         print(f"ERROR: {e}")
         sys.exit(1)
 
-    # GitHub repo, local folder, and Thunderstore ID are all the same string.
-    repo_name      = module_repo_name(args.namespace, package_name)      # adamantSpeedrun-LiveSplit
-    website_url    = f"https://github.com/{args.org}/{repo_name}"
+    # GitHub repo, local folder, Thunderstore ID, and plugin GUID are all the same string.
+    repo_name      = module_repo_name(team, args.package_id)      # adamantSpeedrun-LiveSplit
+    website_url    = f"https://github.com/{org}/{repo_name}"
     local_path     = os.path.join(SUBMODULES_DIR, repo_name)
     submodule_rel  = f"Submodules/{repo_name}"
-    pack_title     = " ".join(w.capitalize() for w in args.pack_id.replace("-", "_").split("_"))  # "run-director" -> "Run Director"
-    shell_repo     = f"{args.pack_id}-modpack"
-    shell_url      = f"https://github.com/{args.org}/{shell_repo}"
+    shell_url      = f"https://github.com/{org}/{shell_repo}"
     lib_version    = read_package_version(os.path.join(ROOT_DIR, "adamant-ModpackLib", "thunderstore.toml"))
 
     print(f"""
   What will be created
   ---------------------------------------------
-  Module ID      : {args.name}
-  Package suffix : {package_name}
+  Package ID     : {args.package_id}
   Display title  : {module_title}
-  Pack ID        : {args.pack_id}
-  Pack namespace : {args.namespace}
-  Shared deps    : {args.shared_namespace}-ModpackLib
+  Pack ID        : {pack_id}
+  Pack name      : {pack_title}
+  Team           : {team}
+  Shared deps    : {args.shared_team}-ModpackLib
   Thunderstore   : {repo_name}
-  GitHub repo    : {args.org}/{repo_name}
+  GitHub repo    : {org}/{repo_name}
   Local folder   : {submodule_rel}
   ---------------------------------------------""")
 
@@ -351,12 +417,12 @@ def main():
     # -------------------------------------------------------------------------
     # Create GitHub repo from template
     # -------------------------------------------------------------------------
-    print(f"\n>>> Creating repo {args.org}/{repo_name} from template...")
+    print(f"\n>>> Creating repo {org}/{repo_name} from template...")
     run([
-        "gh", "repo", "create", f"{args.org}/{repo_name}",
+        "gh", "repo", "create", f"{org}/{repo_name}",
         "--public",
         "--template", TEMPLATE_REPO,
-        "--description", args.desc or args.name,
+        "--description", module_title,
     ])
 
     # -------------------------------------------------------------------------
@@ -364,7 +430,7 @@ def main():
     # GitHub takes a few seconds to push the template branch after repo creation.
     # -------------------------------------------------------------------------
     print(f"\n>>> Cloning into {submodule_rel}...")
-    clone_url = f"https://github.com/{args.org}/{repo_name}.git"
+    clone_url = f"https://github.com/{org}/{repo_name}.git"
     for attempt in range(1, 6):
         result = subprocess.run(
             ["git", "clone", "--branch", "main", clone_url, local_path],
@@ -386,24 +452,23 @@ def main():
 
     toml_path = os.path.join(local_path, "thunderstore.toml")
     replace_in_file(toml_path, {
-        'namespace = "adamant"':              f'namespace = "{args.namespace}"',
-        'name = "SCAFFOLD_TODO_ModName"':              f'name = "{package_name}"',
-        '"SCAFFOLD_TODO: Short description of the mod"': f'"{args.desc or "SCAFFOLD_TODO: description for " + args.name}"',
+        'namespace = "adamant"':              f'namespace = "{team}"',
+        'name = "SCAFFOLD_TODO_ModName"':              f'name = "{args.package_id}"',
+        '"SCAFFOLD_TODO: Short description of the mod"': f'"SCAFFOLD_TODO: description for {module_title}"',
         'https://github.com/h2-modpack/h2-modpack-SCAFFOLD_TODO_ModName': website_url,
         'readme = "./src/README.md"':         'readme = "./README.md"',
         'readme = "./THUNDERSTORE_README.md"': 'readme = "./README.md"',
     })
-    if args.shared_namespace != "adamant":
+    if args.shared_team != "adamant":
         replace_in_file(toml_path, {
-            "adamant-ModpackLib": f"{args.shared_namespace}-ModpackLib",
+            "adamant-ModpackLib": f"{args.shared_team}-ModpackLib",
         })
-    replace_dependency_version(toml_path, f"{args.shared_namespace}-ModpackLib", lib_version)
+    replace_dependency_version(toml_path, f"{args.shared_team}-ModpackLib", lib_version)
 
     readme_path = os.path.join(local_path, "README.md")
     with open(readme_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(MODULE_README.format(
             title=module_title,
-            description=args.desc or "SCAFFOLD_TODO: Short description of what this module does.",
             pack_title=pack_title,
             shell_url=shell_url,
         ))
@@ -417,16 +482,16 @@ def main():
         sys.exit(1)
 
     identity_replacements = {
-        "SCAFFOLD_TODO_ModuleId": args.name,
+        "SCAFFOLD_TODO_ModuleId": args.package_id,
         "SCAFFOLD_TODO Module Name": module_title,
-        "SCAFFOLD_TODO_SHORT": args.name,
-        "SCAFFOLD_TODO tooltip": args.desc or f"SCAFFOLD_TODO: tooltip for {module_title}",
+        "SCAFFOLD_TODO_SHORT": module_title,
+        "SCAFFOLD_TODO tooltip": f"SCAFFOLD_TODO: tooltip for {module_title}",
     }
     replace_in_tree(os.path.join(local_path, "src"), identity_replacements, suffixes=(".lua",))
 
     replace_in_file(main_path, {
         'local PACK_ID = error("SCAFFOLD_TODO: set PACK_ID to your pack id")':
-            f'local PACK_ID = "{args.pack_id}"',
+            f'local PACK_ID = "{pack_id}"',
     })
     validate_current_lib_contract(local_path)
 
@@ -470,7 +535,7 @@ def main():
 ==========================================================
   Done!
 
-  Repo    : https://github.com/{args.org}/{repo_name}
+  Repo    : https://github.com/{org}/{repo_name}
   Local   : {local_path}
 
   Next steps:

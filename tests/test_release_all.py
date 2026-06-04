@@ -15,12 +15,6 @@ import release_all  # noqa: E402
 
 
 MODULE_REPOS = [
-    "adamant-RunDirector_BiomeControl",
-    "adamant-RunDirector_BoonBans",
-    "adamant-RunDirector_GodPool",
-]
-
-NEW_MODULE_REPOS = [
     "adamantRunDirector-BiomeControl",
     "adamantRunDirector-BoonBans",
     "adamantRunDirector-GodPool",
@@ -30,29 +24,14 @@ NEW_MODULE_REPOS = [
 def make_config() -> release_all.ReleaseConfig:
     return release_all.ReleaseConfig(
         org="h2pack-rundirector",
-        team="adamant",
-        legacy_package_prefix="RunDirector",
-        core_repo="adamant-RunDirector_Core",
+        team="adamantRunDirector",
+        core_repo="adamantRunDirector-RunDirector_Modpack",
         root=Path("unused"),
     )
 
 
 def build_plan(tag: str, targets: str | None) -> release_all.ReleasePlan:
     return release_all.build_release_plan(make_config(), tag, targets, MODULE_REPOS)
-
-
-def make_new_config() -> release_all.ReleaseConfig:
-    return release_all.ReleaseConfig(
-        org="adamantRunDirector",
-        team="adamantRunDirector",
-        legacy_package_prefix="RunDirector",
-        core_repo="adamantRunDirector-RunDirector_Modpack",
-        root=Path("unused"),
-    )
-
-
-def build_new_plan(tag: str, targets: str | None) -> release_all.ReleasePlan:
-    return release_all.build_release_plan(make_new_config(), tag, targets, NEW_MODULE_REPOS)
 
 
 def assert_equal(actual, expected, label: str) -> None:
@@ -83,14 +62,14 @@ def test_mass_release_selects_all_modules_and_core() -> None:
 def test_targeted_release_accepts_module_and_core_aliases() -> None:
     plan = build_plan(
         "1.2.1",
-        "BiomeControl, RunDirector_GodPool, adamant-RunDirector_BoonBans, Core, ModpackRunDirectorCore, Modpack",
+        "BiomeControl, adamantRunDirector-GodPool, BoonBans, Core, Modpack, RunDirector_Modpack",
     )
     assert_equal(
         plan.module_repos,
         [
-            "adamant-RunDirector_BiomeControl",
-            "adamant-RunDirector_GodPool",
-            "adamant-RunDirector_BoonBans",
+            "adamantRunDirector-BiomeControl",
+            "adamantRunDirector-GodPool",
+            "adamantRunDirector-BoonBans",
         ],
         "targeted modules",
     )
@@ -100,43 +79,26 @@ def test_targeted_release_accepts_module_and_core_aliases() -> None:
 def test_targeted_release_deduplicates_modules() -> None:
     plan = build_plan(
         "1.2.1",
-        "BiomeControl, adamant-RunDirector_BiomeControl, RunDirector_BiomeControl",
+        "BiomeControl, adamantRunDirector-BiomeControl",
     )
-    assert_equal(plan.module_repos, ["adamant-RunDirector_BiomeControl"], "deduped modules")
+    assert_equal(plan.module_repos, ["adamantRunDirector-BiomeControl"], "deduped modules")
 
 
-def test_new_namespace_release_accepts_short_and_legacy_aliases() -> None:
-    plan = build_new_plan(
-        "1.2.1",
-        "BiomeControl, RunDirector_GodPool, adamantRunDirector-BoonBans, Modpack",
-    )
-    assert_equal(
-        plan.module_repos,
-        [
-            "adamantRunDirector-BiomeControl",
-            "adamantRunDirector-GodPool",
-            "adamantRunDirector-BoonBans",
-        ],
-        "new namespace targeted modules",
-    )
-    assert_true(plan.core_selected, "new namespace core selected")
-
-
-def test_new_namespace_unknown_target_reports_short_repo_name() -> None:
+def test_old_prefixed_module_target_is_rejected() -> None:
     exc = assert_raises(
         "Unknown release target",
-        lambda: build_new_plan("1.2.1", "MissingThing"),
+        lambda: build_plan("1.2.1", "RunDirector_GodPool"),
     )
-    if "adamantRunDirector-MissingThing" not in exc.message:
+    if "adamantRunDirector-RunDirector_GodPool" not in exc.message:
         raise AssertionError(f"unexpected unknown target message: {exc.message}")
 
 
-def test_unknown_target_reports_normalized_repo_name() -> None:
+def test_unknown_target_reports_current_repo_name() -> None:
     exc = assert_raises(
         "Unknown release target",
         lambda: build_plan("1.2.1", "MissingThing"),
     )
-    if "adamant-RunDirector_MissingThing" not in exc.message:
+    if "adamantRunDirector-MissingThing" not in exc.message:
         raise AssertionError(f"unexpected unknown target message: {exc.message}")
 
 
@@ -157,9 +119,8 @@ def main() -> int:
         test_mass_release_selects_all_modules_and_core,
         test_targeted_release_accepts_module_and_core_aliases,
         test_targeted_release_deduplicates_modules,
-        test_new_namespace_release_accepts_short_and_legacy_aliases,
-        test_new_namespace_unknown_target_reports_short_repo_name,
-        test_unknown_target_reports_normalized_repo_name,
+        test_old_prefixed_module_target_is_rejected,
+        test_unknown_target_reports_current_repo_name,
         test_mass_release_requires_zero_patch,
         test_targeted_release_requires_nonzero_patch,
         test_empty_target_list_is_rejected,

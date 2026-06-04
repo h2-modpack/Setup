@@ -46,7 +46,6 @@ jobs:
           python3 Setup/github/release_all.py \
             --org "{{ORG}}" \
             --team "{{NAMESPACE}}" \
-            --legacy-package-prefix "{{LEGACY_PACKAGE_PREFIX}}" \
             --core-repo "{{COORD_ID}}" \
             --tag "$TAG" \
             --child-dry-run "$DRY_RUN" \
@@ -110,7 +109,6 @@ jobs:
           python3 Setup/github/release_all.py \
             --org "{{ORG}}" \
             --team "{{NAMESPACE}}" \
-            --legacy-package-prefix "{{LEGACY_PACKAGE_PREFIX}}" \
             --core-repo "{{COORD_ID}}" \
             --tag "$TAG" \
             --child-dry-run "$DRY_RUN" \

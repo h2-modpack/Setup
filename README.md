@@ -40,13 +40,13 @@ Pack-owned Thunderstore packages use the pack team/namespace. The pack scaffold 
 From the shell repo root:
 
 ```bash
-python Setup/scaffold/new_module.py --name MyModName --pack-id my-pack --namespace adamantMyPack --org adamantMyPack
+python Setup/scaffold/new_module.py --package-id My_Module --title "My Module"
 python Setup/deploy/deploy_all.py --overwrite
 ```
 
 `new_module.py` creates the GitHub repo from the module template, fills in module identity, commits the initial repo, registers it under `Submodules/`, and syncs the coordinator dependency block.
 
-Generated module package names do not include the pack prefix because the pack namespace already carries that identity. For example, `--namespace adamantSpeedrun --name LiveSplit` creates `adamantSpeedrun-LiveSplit`.
+Generated module package names do not include the pack prefix because the pack team already carries that identity. For example, in a pack using `team = adamantSpeedrun`, `--package-id LiveSplit --title "LiveSplit"` creates `adamantSpeedrun-LiveSplit`. The package id is also the Lib/Framework module id.
 
 Generated modules use the standard module template contract: `main.lua` plus `mods/data.lua`, `mods/logic.lua`, and `mods/ui.lua`, safe module creation/activation, host-owned hook registration, and the standard module CI baseline.
 

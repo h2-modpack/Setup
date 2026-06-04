@@ -12,14 +12,12 @@ if str(SCAFFOLD_DIR) not in sys.path:
 
 from new_module import (  # noqa: E402
     module_repo_name,
-    normalize_title,
-    pascal_to_title,
     validate_current_lib_contract,
-    validate_module_name,
-    validate_package_name,
+    parse_github_remote,
+    validate_package_id,
+    validate_single_line as validate_module_single_line,
 )
 from new_pack import (  # noqa: E402
-    coordinator_alias_prefix,
     coordinator_id,
     validate_coordinator_package,
     validate_org,
@@ -123,41 +121,20 @@ def test_new_module_validator_rejects_stale_contract() -> None:
             raise AssertionError("stale module template marker was accepted")
 
 
-def test_new_module_title_fallback_preserves_known_acronyms() -> None:
-    assert pascal_to_title("SelectFirstHammer") == "Select First Hammer"
-    assert pascal_to_title("LiveSplit") == "Live Split"
-    assert pascal_to_title("QoL") == "QoL"
-    assert pascal_to_title("GameplayQoL") == "Gameplay QoL"
-    assert pascal_to_title("TimerRTAIGT") == "Timer RTA IGT"
-    assert pascal_to_title("LastRunLrT") == "Last Run LrT"
+def test_new_module_package_id_validation_matches_lib_identifier_shape() -> None:
+    validate_package_id("Gameplay_QoL")
+    validate_package_id("Balance_Changes")
+    validate_package_id("LiveSplit")
+    validate_package_id("QoL")
+    validate_package_id("Select_First_Hammer")
 
-
-def test_new_module_name_validation_rejects_package_unsafe_names() -> None:
-    validate_module_name("GameplayQoL")
-    validate_module_name("QoL")
-
-    for value in ("gameplayQoL", "Gameplay QoL", "Gameplay-QoL", "Gameplay_QoL", "1Gameplay"):
+    for value in ("Gameplay QoL", "Gameplay-QoL", "_Gameplay_QoL", "Gameplay_QoL_", "Gameplay__QoL", "1Gameplay"):
         try:
-            validate_module_name(value)
+            validate_package_id(value)
         except ValueError:
             pass
         else:
-            raise AssertionError(f"invalid module name accepted: {value}")
-
-
-def test_new_module_package_name_validation_allows_thunderstore_word_breaks() -> None:
-    validate_package_name("Gameplay_QoL")
-    validate_package_name("Balance_Changes")
-    validate_package_name("Live_Split")
-    validate_package_name("Select_First_Hammer")
-
-    for value in ("Gameplay QoL", "Gameplay-QoL", "_Gameplay_QoL", "Gameplay_QoL_", "Gameplay__QoL"):
-        try:
-            validate_package_name(value)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError(f"invalid package name accepted: {value}")
+            raise AssertionError(f"invalid package id accepted: {value}")
 
 
 def test_new_module_repo_name_uses_pack_namespace_without_pack_prefix() -> None:
@@ -165,25 +142,33 @@ def test_new_module_repo_name_uses_pack_namespace_without_pack_prefix() -> None:
     assert module_repo_name("adamantRunDirector", "Gameplay_QoL") == "adamantRunDirector-Gameplay_QoL"
 
 
-def test_new_module_title_normalization_is_display_only() -> None:
-    assert normalize_title(" Gameplay QoL ") == "Gameplay QoL"
-    assert normalize_title(None) is None
+def test_new_module_title_is_explicit_display_identity() -> None:
+    assert validate_module_single_line(" Gameplay QoL ", "--title") == "Gameplay QoL"
 
     for value in ("", "   ", "Two\nLines"):
         try:
-            normalize_title(value)
+            validate_module_single_line(value, "--title")
         except ValueError:
             pass
         else:
             raise AssertionError(f"invalid title accepted: {value!r}")
 
 
+def test_new_module_remote_parser_reads_github_org_and_repo() -> None:
+    assert parse_github_remote("https://github.com/h2pack-speedrun/speedrun-modpack.git") == (
+        "h2pack-speedrun",
+        "speedrun-modpack",
+    )
+    assert parse_github_remote("git@github.com:h2pack-rundirector/run-director-modpack.git") == (
+        "h2pack-rundirector",
+        "run-director-modpack",
+    )
+    assert parse_github_remote("https://example.com/not-github/repo.git") == (None, None)
+
+
 def test_new_pack_uses_explicit_coordinator_package() -> None:
     assert coordinator_id("adamantSpeedrun", "Speedrun_Modpack") == "adamantSpeedrun-Speedrun_Modpack"
     assert coordinator_id("adamantRunDirector", "RunDirector_Modpack") == "adamantRunDirector-RunDirector_Modpack"
-    assert coordinator_alias_prefix("Speedrun_Modpack") == "Speedrun"
-    assert coordinator_alias_prefix("RunDirector_Modpack") == "RunDirector"
-    assert coordinator_alias_prefix("CustomCoordinator") == "CustomCoordinator"
 
 
 def test_new_pack_validation_rejects_ambiguous_names() -> None:
