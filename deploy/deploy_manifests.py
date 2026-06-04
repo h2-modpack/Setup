@@ -4,32 +4,37 @@ Usage: python deploy_manifests.py [--overwrite] [--profile NAME]
 """
 
 import os
-import sys
-import subprocess
-from deploy_common import discover_mods, base_parser, DEPLOY_DIR
+from deploy_common import discover_mods, base_parser
+from generate_manifest import write_manifest
+
+
+def generate_manifest_for_mod(mod_dir, overwrite):
+    """Generate src/manifest.json for one package if needed."""
+    toml_path = os.path.join(mod_dir, "thunderstore.toml")
+    output_path = os.path.join(mod_dir, "src", "manifest.json")
+    mod_name = os.path.basename(mod_dir)
+
+    if os.path.exists(output_path) and not overwrite:
+        print(f"  SKIP (exists): {mod_name}/src/manifest.json")
+        return False
+
+    print(f"--- {mod_name} ---")
+    write_manifest(toml_path, output_path)
+    print(f"  Generated manifest: {output_path}")
+    return True
 
 
 def main():
     parser = base_parser("Generate manifest.json for all mods")
     args = parser.parse_args()
-    gen_script = os.path.join(DEPLOY_DIR, "generate_manifest.py")
 
     print(f"\n  Manifest generation")
     print(f"  Overwrite: {args.overwrite}\n")
 
     count = 0
     for mod_dir in discover_mods():
-        toml_path = os.path.join(mod_dir, "thunderstore.toml")
-        output_path = os.path.join(mod_dir, "src", "manifest.json")
-        mod_name = os.path.basename(mod_dir)
-
-        if os.path.exists(output_path) and not args.overwrite:
-            print(f"  SKIP (exists): {mod_name}/src/manifest.json")
-            continue
-
-        print(f"--- {mod_name} ---")
-        subprocess.run([sys.executable, gen_script, toml_path, output_path], check=True)
-        count += 1
+        if generate_manifest_for_mod(mod_dir, args.overwrite):
+            count += 1
 
     print(f"\nDone. {count} manifests generated.\n")
 

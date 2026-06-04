@@ -64,6 +64,16 @@ def parse_toml(toml_path: str | os.PathLike[str]) -> dict:
     }
 
 
+def write_manifest(toml_path: str | os.PathLike[str], output_path: str | os.PathLike[str]) -> dict:
+    """Generate and write manifest.json content for one package."""
+    manifest = parse_toml(toml_path)
+    path = Path(output_path)
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        json.dump(manifest, handle, indent=2)
+        handle.write("\n")
+    return manifest
+
+
 def main() -> int:
     if len(sys.argv) != 3:
         print("Usage: python generate_manifest.py <thunderstore.toml> <output_manifest.json>")
@@ -77,14 +87,10 @@ def main() -> int:
         return 1
 
     try:
-        manifest = parse_toml(toml_path)
+        write_manifest(toml_path, output_path)
     except (OSError, ValueError, tomllib.TOMLDecodeError) as exc:
         print(f"Error: {exc}")
         return 1
-
-    with output_path.open("w", encoding="utf-8", newline="\n") as handle:
-        json.dump(manifest, handle, indent=2)
-        handle.write("\n")
 
     print(f"  Generated manifest: {output_path}")
     return 0
