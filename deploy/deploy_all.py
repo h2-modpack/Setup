@@ -1,5 +1,5 @@
 """
-Full local deployment: assets, manifests, symlinks, and git hooks.
+Full local deployment: staged package assets, manifests, symlinks, and git hooks.
 Orchestrates all deploy_* scripts.
 
 Usage: python deploy_all.py [--overwrite] [--profile NAME]
@@ -12,7 +12,7 @@ from deploy_common import base_parser, DEPLOY_DIR
 
 
 STEPS = [
-    ("deploy_assets.py", "Copying assets (icon.png, LICENSE)"),
+    ("deploy_assets.py", "Staging package assets (icon.png, LICENSE)"),
     ("deploy_manifests.py", "Generating manifests"),
     ("deploy_links.py", "Creating symlinks"),
     ("deploy_hooks.py", "Configuring git hooks"),

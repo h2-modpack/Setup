@@ -1,18 +1,18 @@
 """
-Copies icon.png and LICENSE into each mod's src/ folder.
+Stages each package's root-level assets into src/ for local deployment.
 Usage: python deploy_assets.py [--overwrite] [--profile NAME]
 """
 
 import os
 import shutil
-from deploy_common import discover_mods, base_parser, TOOLS_DIR
+from deploy_common import discover_mods, base_parser
 
 
 ASSETS = ["icon.png", "LICENSE"]
 
 
 def main():
-    parser = base_parser("Copy shared assets (icon.png, LICENSE) into each mod's src/")
+    parser = base_parser("Stage package assets (icon.png, LICENSE) into each mod's src/")
     args = parser.parse_args()
 
     print(f"\n  Asset deployment")
@@ -25,11 +25,11 @@ def main():
         copied_any = False
 
         for asset in ASSETS:
-            source = os.path.join(TOOLS_DIR, asset)
+            source = os.path.join(mod_dir, asset)
             dest = os.path.join(src_dir, asset)
 
             if not os.path.exists(source):
-                print(f"  WARNING: {asset} not found in ModpackTools/")
+                print(f"  WARNING: {asset} not found in {mod_name}/")
                 continue
 
             if os.path.exists(dest) and not args.overwrite:

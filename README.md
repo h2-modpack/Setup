@@ -12,7 +12,7 @@ one-time creation of a new pack workspace.
 ModpackTools is the ongoing toolbelt for an existing pack workspace:
 
 - scaffold new module repos from the module template
-- deploy local assets, manifests, profile links, and git hooks
+- stage package assets for local deploy, generate manifests, link profiles, and configure git hooks
 - register or prune submodule entries
 - validate release plans and platform dependency edges
 - optionally configure GitHub Actions secrets
@@ -46,9 +46,10 @@ python ModpackTools/deploy/deploy_all.py
 python ModpackTools/deploy/deploy_all.py --overwrite
 ```
 
-`deploy_all.py` refreshes shared assets, generated manifests, r2modman profile
-links, and git hook configuration. Use `--overwrite` when regenerating files or
-links that already exist.
+`deploy_all.py` stages each package's root `icon.png` and `LICENSE` into
+`src/`, refreshes generated manifests, updates r2modman profile links, and
+configures git hooks. Use `--overwrite` when regenerating files or links that
+already exist.
 
 On Linux/macOS, `./ModpackTools/lin.sh` is a shorthand for the same local deploy
 path. On Windows, `ModpackTools/win.bat` is available and may require
@@ -161,8 +162,8 @@ Deployment helpers:
 
 | File | Description |
 |---|---|
-| `deploy/deploy_all.py` | Full local deploy: assets, manifests, symlinks, git hooks |
-| `deploy/deploy_assets.py` | Copy `icon.png` and `LICENSE` from ModpackTools root into every mod's `src/` |
+| `deploy/deploy_all.py` | Full local deploy: staged package assets, manifests, symlinks, git hooks |
+| `deploy/deploy_assets.py` | Copy each package's root `icon.png` and `LICENSE` into its `src/` for local deploy |
 | `deploy/deploy_manifests.py` | Generate `manifest.json` for every mod from `thunderstore.toml` |
 | `deploy/deploy_links.py` | Create r2modman profile symlinks for every mod |
 | `deploy/deploy_hooks.py` | Configure `.githooks` paths for every mod repo |
