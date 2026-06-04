@@ -6,11 +6,11 @@ from pathlib import Path
 
 
 TOOLS_DIR = Path(__file__).resolve().parents[1]
-SCAFFOLD_DIR = TOOLS_DIR / "scaffold"
-if str(SCAFFOLD_DIR) not in sys.path:
-    sys.path.insert(0, str(SCAFFOLD_DIR))
+NEW_MODULE_DIR = TOOLS_DIR / "new_module"
+if str(NEW_MODULE_DIR) not in sys.path:
+    sys.path.insert(0, str(NEW_MODULE_DIR))
 
-from new_module import (  # noqa: E402
+from create import (  # noqa: E402
     module_repo_name,
     validate_current_lib_contract,
     parse_github_remote,
@@ -93,14 +93,14 @@ def write_template(root: Path, *, main: str = CURRENT_MAIN_LUA, logic: str = CUR
     (root / "src" / "mods" / "logic.lua").write_text(logic, encoding="utf-8")
 
 
-def test_new_module_validator_accepts_current_contract() -> None:
+def test_create_validator_accepts_current_contract() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         write_template(root)
         validate_current_lib_contract(str(root))
 
 
-def test_new_module_validator_rejects_stale_contract() -> None:
+def test_create_validator_rejects_stale_contract() -> None:
     stale_main = CURRENT_MAIN_LUA + "\nlocal standaloneUi = lib.standaloneUiBridge(PLUGIN_GUID)\n"
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -113,7 +113,7 @@ def test_new_module_validator_rejects_stale_contract() -> None:
             raise AssertionError("stale module template marker was accepted")
 
 
-def test_new_module_package_id_validation_matches_lib_identifier_shape() -> None:
+def test_create_package_id_validation_matches_lib_identifier_shape() -> None:
     validate_package_id("Gameplay_QoL")
     validate_package_id("Balance_Changes")
     validate_package_id("LiveSplit")
@@ -129,12 +129,12 @@ def test_new_module_package_id_validation_matches_lib_identifier_shape() -> None
             raise AssertionError(f"invalid package id accepted: {value}")
 
 
-def test_new_module_repo_name_uses_pack_namespace_without_pack_prefix() -> None:
+def test_create_repo_name_uses_pack_namespace_without_pack_prefix() -> None:
     assert module_repo_name("adamantSpeedrun", "LiveSplit") == "adamantSpeedrun-LiveSplit"
     assert module_repo_name("adamantRunDirector", "Gameplay_QoL") == "adamantRunDirector-Gameplay_QoL"
 
 
-def test_new_module_title_is_explicit_display_identity() -> None:
+def test_create_title_is_explicit_display_identity() -> None:
     assert validate_module_single_line(" Gameplay QoL ", "--title") == "Gameplay QoL"
 
     for value in ("", "   ", "Two\nLines"):
@@ -146,7 +146,7 @@ def test_new_module_title_is_explicit_display_identity() -> None:
             raise AssertionError(f"invalid title accepted: {value!r}")
 
 
-def test_new_module_remote_parser_reads_github_org_and_repo() -> None:
+def test_create_remote_parser_reads_github_org_and_repo() -> None:
     assert parse_github_remote("https://github.com/h2pack-speedrun/speedrun-modpack.git") == (
         "h2pack-speedrun",
         "speedrun-modpack",

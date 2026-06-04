@@ -6,8 +6,8 @@ identity, wires git hooks, commits the filled files, pushes, and registers it
 as a submodule.
 
 Usage (run from the shell repo root):
-  python ModpackTools/scaffold/new_module.py --package-id LiveSplit --title "LiveSplit"
-  python ModpackTools/scaffold/new_module.py --package-id Gameplay_QoL --title "Gameplay QoL"
+  python ModpackTools/new_module/create.py --package-id LiveSplit --title "LiveSplit"
+  python ModpackTools/new_module/create.py --package-id Gameplay_QoL --title "Gameplay QoL"
 
   --package-id Thunderstore package suffix and Lib/Framework module id.
   --title      Human display name.
@@ -546,7 +546,7 @@ def main():
   Next steps:
     1. Edit src/main.lua and src/mods/*.lua - fill in definition fields and module behavior
     2. Review the synced coordinator thunderstore.toml dependency block
-    3. python ModpackTools/deploy/deploy_all.py --overwrite
+    3. python ModpackTools/local_deploy/deploy_all.py --overwrite
     4. No secret update is needed if pack org secrets use All repositories access
 ==========================================================
 """)

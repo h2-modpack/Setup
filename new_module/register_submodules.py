@@ -13,8 +13,8 @@ Repos with no remote configured are skipped with a warning - create the GitHub
 repo first, add it as `origin`, then re-run this script.
 
 Usage (run from anywhere inside the shell repo):
-  python ModpackTools/scaffold/register_submodules.py
-  python ModpackTools/scaffold/register_submodules.py --prune
+  python ModpackTools/new_module/register_submodules.py
+  python ModpackTools/new_module/register_submodules.py --prune
 """
 
 import os

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for scaffold/coordinator_deps.py."""
+"""Tests for new_module/coordinator_deps.py."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ from pathlib import Path
 
 
 TOOLS_DIR = Path(__file__).resolve().parents[1]
-SCAFFOLD_DIR = TOOLS_DIR / "scaffold"
-if str(SCAFFOLD_DIR) not in sys.path:
-    sys.path.insert(0, str(SCAFFOLD_DIR))
+NEW_MODULE_DIR = TOOLS_DIR / "new_module"
+if str(NEW_MODULE_DIR) not in sys.path:
+    sys.path.insert(0, str(NEW_MODULE_DIR))
 
 import coordinator_deps  # noqa: E402
 

@@ -21,11 +21,11 @@ ModpackTools is the ongoing toolbelt for an existing pack workspace:
 From the shell repo root:
 
 ```bash
-python ModpackTools/scaffold/new_module.py --package-id My_Module --title "My Module"
-python ModpackTools/deploy/deploy_all.py --overwrite
+python ModpackTools/new_module/create.py --package-id My_Module --title "My Module"
+python ModpackTools/local_deploy/deploy_all.py --overwrite
 ```
 
-`new_module.py` creates the GitHub repo from
+`create.py` creates the GitHub repo from
 [`ModpackModuleTemplate`](https://github.com/h2-modpack/ModpackModuleTemplate),
 fills in module identity, commits the initial repo, registers it under
 `Submodules/`, and syncs the coordinator dependency block.
@@ -41,8 +41,8 @@ After cloning, scaffolding, or changing a pack locally, run the deploy step from
 the shell repo root:
 
 ```bash
-python ModpackTools/deploy/deploy_all.py
-python ModpackTools/deploy/deploy_all.py --overwrite
+python ModpackTools/local_deploy/deploy_all.py
+python ModpackTools/local_deploy/deploy_all.py --overwrite
 ```
 
 `deploy_all.py` stages each package's root `icon.png` and `LICENSE` into
@@ -82,13 +82,13 @@ If repos already exist under `Submodules/` but are not registered in
 `.gitmodules`:
 
 ```bash
-python ModpackTools/scaffold/register_submodules.py
+python ModpackTools/new_module/register_submodules.py
 ```
 
 After deleting module folders from `Submodules/`, prune stale entries:
 
 ```bash
-python ModpackTools/scaffold/register_submodules.py --prune
+python ModpackTools/new_module/register_submodules.py --prune
 ```
 
 To commit and push a shared change across all module repos:
@@ -111,8 +111,8 @@ Deployment helpers:
 
 | File | Description |
 |---|---|
-| `deploy/deploy_all.py` | Full local deploy: staged package assets, manifests, symlinks, git hooks |
-| `deploy/steps/` | Implementation modules used by `deploy_all.py` |
+| `local_deploy/deploy_all.py` | Full local deploy: staged package assets, manifests, symlinks, git hooks |
+| `local_deploy/steps/` | Implementation modules used by `deploy_all.py` |
 
 GitHub automation helpers:
 
@@ -126,9 +126,9 @@ Scaffolding helpers:
 
 | File | Description |
 |---|---|
-| `scaffold/new_module.py` | Scaffold a module repo from the template and register it as a submodule |
-| `scaffold/register_submodules.py` | Register or prune `Submodules/` entries in `.gitmodules` |
-| `scaffold/coordinator_deps.py` | Sync the coordinator's managed module dependency block |
+| `new_module/create.py` | Scaffold a module repo from the template and register it as a submodule |
+| `new_module/register_submodules.py` | Register or prune `Submodules/` entries in `.gitmodules` |
+| `new_module/coordinator_deps.py` | Sync the coordinator's managed module dependency block |
 
 ## Common Flags
 

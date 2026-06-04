@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for ModpackTools/deploy/steps/common.py."""
+"""Tests for ModpackTools/local_deploy/steps/common.py."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pathlib import Path
 TEST_DIR = Path(__file__).resolve().parent
 TOOLS_DIR = TEST_DIR.parent
 
-sys.path.insert(0, str(TOOLS_DIR / "deploy"))
+sys.path.insert(0, str(TOOLS_DIR / "local_deploy"))
 from steps import common  # noqa: E402
 
 

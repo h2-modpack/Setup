@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 TOOLS_DIR = Path(__file__).resolve().parents[1]
-DEPLOY_DIR = TOOLS_DIR / "deploy"
+DEPLOY_DIR = TOOLS_DIR / "local_deploy"
 if str(DEPLOY_DIR) not in sys.path:
     sys.path.insert(0, str(DEPLOY_DIR))
 
