@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for deploy/deploy_assets.py."""
+"""Tests for deploy/steps/assets.py."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ DEPLOY_DIR = TOOLS_DIR / "deploy"
 if str(DEPLOY_DIR) not in sys.path:
     sys.path.insert(0, str(DEPLOY_DIR))
 
-import deploy_assets  # noqa: E402
+from steps import assets  # noqa: E402
 
 
 def make_package(root: Path) -> Path:
@@ -28,7 +28,7 @@ def test_stage_package_assets_copies_root_assets_to_src() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         package = make_package(Path(tmp))
 
-        copied = deploy_assets.stage_package_assets(str(package), overwrite=False)
+        copied = assets.stage_package_assets(str(package), overwrite=False)
 
         assert copied
         assert (package / "src" / "icon.png").read_bytes() == b"root-icon"
@@ -41,7 +41,7 @@ def test_stage_package_assets_respects_existing_files_without_overwrite() -> Non
         (package / "src" / "icon.png").write_bytes(b"existing-icon")
         (package / "src" / "LICENSE").write_text("existing license\n", encoding="utf-8")
 
-        copied = deploy_assets.stage_package_assets(str(package), overwrite=False)
+        copied = assets.stage_package_assets(str(package), overwrite=False)
 
         assert not copied
         assert (package / "src" / "icon.png").read_bytes() == b"existing-icon"
@@ -54,7 +54,7 @@ def test_stage_package_assets_overwrites_existing_files_when_requested() -> None
         (package / "src" / "icon.png").write_bytes(b"existing-icon")
         (package / "src" / "LICENSE").write_text("existing license\n", encoding="utf-8")
 
-        copied = deploy_assets.stage_package_assets(str(package), overwrite=True)
+        copied = assets.stage_package_assets(str(package), overwrite=True)
 
         assert copied
         assert (package / "src" / "icon.png").read_bytes() == b"root-icon"
@@ -69,7 +69,7 @@ def main() -> int:
     ]
     for test in tests:
         test()
-    print(f"{len(tests)} deploy_assets tests passed.")
+    print(f"{len(tests)} deploy assets tests passed.")
     return 0
 
 

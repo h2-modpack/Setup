@@ -14,8 +14,7 @@ DEPLOY_DIR = TOOLS_DIR / "deploy"
 if str(DEPLOY_DIR) not in sys.path:
     sys.path.insert(0, str(DEPLOY_DIR))
 
-import deploy_manifests  # noqa: E402
-import generate_manifest  # noqa: E402
+from steps import manifest_writer, manifests  # noqa: E402
 
 
 PACKAGE_TOML = """
@@ -44,7 +43,7 @@ def test_write_manifest_outputs_local_manifest_shape() -> None:
         package = make_package(Path(tmp))
         output = package / "src" / "manifest.json"
 
-        manifest = generate_manifest.write_manifest(package / "thunderstore.toml", output)
+        manifest = manifest_writer.write_manifest(package / "thunderstore.toml", output)
         written = json.loads(output.read_text(encoding="utf-8"))
 
         expected = {
@@ -63,25 +62,25 @@ def test_write_manifest_outputs_local_manifest_shape() -> None:
         assert written == expected
 
 
-def test_generate_manifest_for_mod_skips_existing_without_overwrite() -> None:
+def test_generate_manifest_for_package_skips_existing_without_overwrite() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         package = make_package(Path(tmp))
         output = package / "src" / "manifest.json"
         output.write_text('{"existing": true}\n', encoding="utf-8")
 
-        generated = deploy_manifests.generate_manifest_for_mod(str(package), overwrite=False)
+        generated = manifests.generate_manifest_for_package(str(package), overwrite=False)
 
         assert not generated
         assert json.loads(output.read_text(encoding="utf-8")) == {"existing": True}
 
 
-def test_generate_manifest_for_mod_overwrites_when_requested() -> None:
+def test_generate_manifest_for_package_overwrites_when_requested() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         package = make_package(Path(tmp))
         output = package / "src" / "manifest.json"
         output.write_text('{"existing": true}\n', encoding="utf-8")
 
-        generated = deploy_manifests.generate_manifest_for_mod(str(package), overwrite=True)
+        generated = manifests.generate_manifest_for_package(str(package), overwrite=True)
 
         assert generated
         assert json.loads(output.read_text(encoding="utf-8"))["FullName"] == "adamantSpeedrun-LiveSplit"
@@ -90,12 +89,12 @@ def test_generate_manifest_for_mod_overwrites_when_requested() -> None:
 def main() -> int:
     tests = [
         test_write_manifest_outputs_local_manifest_shape,
-        test_generate_manifest_for_mod_skips_existing_without_overwrite,
-        test_generate_manifest_for_mod_overwrites_when_requested,
+        test_generate_manifest_for_package_skips_existing_without_overwrite,
+        test_generate_manifest_for_package_overwrites_when_requested,
     ]
     for test in tests:
         test()
-    print(f"{len(tests)} deploy_manifests tests passed.")
+    print(f"{len(tests)} deploy manifests tests passed.")
     return 0
 
 

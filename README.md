@@ -112,12 +112,7 @@ Deployment helpers:
 | File | Description |
 |---|---|
 | `deploy/deploy_all.py` | Full local deploy: staged package assets, manifests, symlinks, git hooks |
-| `deploy/deploy_assets.py` | Copy each package's root `icon.png` and `LICENSE` into its `src/` for local deploy |
-| `deploy/deploy_manifests.py` | Generate `manifest.json` for every mod from `thunderstore.toml` |
-| `deploy/deploy_links.py` | Create r2modman profile symlinks for every mod |
-| `deploy/deploy_hooks.py` | Configure `.githooks` paths for every mod repo |
-| `deploy/deploy_common.py` | Shared deploy utilities |
-| `deploy/generate_manifest.py` | Generate a manifest for a single mod using structured TOML parsing |
+| `deploy/steps/` | Implementation modules used by `deploy_all.py` |
 
 GitHub automation helpers:
 

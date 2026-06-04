@@ -1,21 +1,19 @@
 """
 Full local deployment: staged package assets, manifests, symlinks, and git hooks.
-Orchestrates all deploy_* scripts.
 
 Usage: python deploy_all.py [--overwrite] [--profile NAME]
 """
 
-import os
 import sys
-import subprocess
-from deploy_common import base_parser, DEPLOY_DIR
+from steps import assets, hooks, links, manifests
+from steps.common import base_parser
 
 
 STEPS = [
-    ("deploy_assets.py", "Staging package assets (icon.png, LICENSE)"),
-    ("deploy_manifests.py", "Generating manifests"),
-    ("deploy_links.py", "Creating symlinks"),
-    ("deploy_hooks.py", "Configuring git hooks"),
+    ("Staging package assets (icon.png, LICENSE)", lambda args: assets.deploy(args.overwrite)),
+    ("Generating manifests", lambda args: manifests.deploy(args.overwrite)),
+    ("Creating symlinks", lambda args: links.deploy(args.overwrite, args.profile)),
+    ("Configuring git hooks", lambda args: hooks.deploy(args.overwrite)),
 ]
 
 
@@ -29,20 +27,9 @@ def main():
     print(f"  Overwrite: {args.overwrite}")
     print("==========================================================\n")
 
-    passthrough = []
-    if args.overwrite:
-        passthrough.append("--overwrite")
-    if args.profile != "h2-dev":
-        passthrough.extend(["--profile", args.profile])
-
-    for script, label in STEPS:
+    for label, deploy_step in STEPS:
         print(f">>> {label}...")
-        result = subprocess.run(
-            [sys.executable, os.path.join(DEPLOY_DIR, script)] + passthrough
-        )
-        if result.returncode != 0:
-            print(f"ERROR: {script} failed with exit code {result.returncode}")
-            sys.exit(result.returncode)
+        deploy_step(args)
 
     print("==========================================================")
     print("  Full deployment complete.")
@@ -50,4 +37,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)

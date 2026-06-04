@@ -1,17 +1,17 @@
 """
-Shared utilities for deploy_* scripts.
+Shared utilities for deploy steps.
 """
 
-import os
-import glob
 import argparse
+import glob
+import os
 import platform
 import tomllib
 
 
-DEPLOY_DIR = os.path.dirname(os.path.abspath(__file__))
-TOOLS_DIR  = os.path.dirname(DEPLOY_DIR)
-ROOT_DIR   = os.path.dirname(TOOLS_DIR)
+DEPLOY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOLS_DIR = os.path.dirname(DEPLOY_DIR)
+ROOT_DIR = os.path.dirname(TOOLS_DIR)
 DEFAULT_PROFILE = "h2-dev"
 
 
@@ -21,8 +21,7 @@ def get_profile_path(profile_name):
         if not appdata:
             raise RuntimeError("APPDATA is not set; cannot locate r2modman profile directory")
         return os.path.join(appdata, "r2modmanPlus-local", "HadesII", "profiles", profile_name, "ReturnOfModding")
-    else:
-        return os.path.expanduser(f"~/.config/r2modmanPlus-local/HadesII/profiles/{profile_name}/ReturnOfModding")
+    return os.path.expanduser(f"~/.config/r2modmanPlus-local/HadesII/profiles/{profile_name}/ReturnOfModding")
 
 
 def get_toml_info(toml_path):
@@ -39,8 +38,8 @@ def get_toml_info(toml_path):
     return namespace, name
 
 
-def discover_mods():
-    """Returns top-level dirs with thunderstore.toml, then Submodules/* with thunderstore.toml."""
+def discover_packages():
+    """Returns top-level packages, then Submodules/* packages."""
     top_level = sorted(
         d for d in glob.glob(os.path.join(ROOT_DIR, "*"))
         if os.path.isdir(d) and os.path.isfile(os.path.join(d, "thunderstore.toml"))

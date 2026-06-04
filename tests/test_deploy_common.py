@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for ModpackTools/deploy/deploy_common.py."""
+"""Tests for ModpackTools/deploy/steps/common.py."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ TEST_DIR = Path(__file__).resolve().parent
 TOOLS_DIR = TEST_DIR.parent
 
 sys.path.insert(0, str(TOOLS_DIR / "deploy"))
-import deploy_common  # noqa: E402
+from steps import common  # noqa: E402
 
 
 def assert_equal(actual, expected, label: str) -> None:
@@ -45,7 +45,7 @@ name = "RunDirector_Test"
             encoding="utf-8",
         )
 
-        namespace, name = deploy_common.get_toml_info(toml_path)
+        namespace, name = common.get_toml_info(toml_path)
 
     assert_equal(namespace, "adamant", "namespace")
     assert_equal(name, "RunDirector_Test", "name")
@@ -56,7 +56,7 @@ def test_get_toml_info_requires_name() -> None:
         toml_path = Path(tmp) / "thunderstore.toml"
         toml_path.write_text('[package]\nnamespace = "adamant"\n', encoding="utf-8")
 
-        assert_raises("missing package.name", lambda: deploy_common.get_toml_info(toml_path))
+        assert_raises("missing package.name", lambda: common.get_toml_info(toml_path))
 
 
 def test_windows_profile_path_requires_appdata() -> None:
@@ -65,7 +65,7 @@ def test_windows_profile_path_requires_appdata() -> None:
 
     old_appdata = os.environ.pop("APPDATA", None)
     try:
-        assert_raises("APPDATA is not set", lambda: deploy_common.get_profile_path("h2-dev"))
+        assert_raises("APPDATA is not set", lambda: common.get_profile_path("h2-dev"))
     finally:
         if old_appdata is not None:
             os.environ["APPDATA"] = old_appdata
@@ -79,7 +79,7 @@ def main() -> int:
     ]
     for test in tests:
         test()
-    print(f"{len(tests)} deploy_common tests passed.")
+    print(f"{len(tests)} deploy common tests passed.")
     return 0
 
 
