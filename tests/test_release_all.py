@@ -30,8 +30,8 @@ NEW_MODULE_REPOS = [
 def make_config() -> release_all.ReleaseConfig:
     return release_all.ReleaseConfig(
         org="h2pack-rundirector",
-        namespace="adamant",
-        pack_pascal="RunDirector",
+        team="adamant",
+        legacy_package_prefix="RunDirector",
         core_repo="adamant-RunDirector_Core",
         root=Path("unused"),
     )
@@ -44,8 +44,8 @@ def build_plan(tag: str, targets: str | None) -> release_all.ReleasePlan:
 def make_new_config() -> release_all.ReleaseConfig:
     return release_all.ReleaseConfig(
         org="adamantRunDirector",
-        namespace="adamantRunDirector",
-        pack_pascal="RunDirector",
+        team="adamantRunDirector",
+        legacy_package_prefix="RunDirector",
         core_repo="adamantRunDirector-RunDirector_Modpack",
         root=Path("unused"),
     )

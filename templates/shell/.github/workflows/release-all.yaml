@@ -45,8 +45,8 @@ jobs:
         run: |
           python3 Setup/github/release_all.py \
             --org "{{ORG}}" \
-            --namespace "{{NAMESPACE}}" \
-            --pack-pascal "{{PACK_PASCAL}}" \
+            --team "{{NAMESPACE}}" \
+            --legacy-package-prefix "{{LEGACY_PACKAGE_PREFIX}}" \
             --core-repo "{{COORD_ID}}" \
             --tag "$TAG" \
             --child-dry-run "$DRY_RUN" \
@@ -109,8 +109,8 @@ jobs:
         run: |
           python3 Setup/github/release_all.py \
             --org "{{ORG}}" \
-            --namespace "{{NAMESPACE}}" \
-            --pack-pascal "{{PACK_PASCAL}}" \
+            --team "{{NAMESPACE}}" \
+            --legacy-package-prefix "{{LEGACY_PACKAGE_PREFIX}}" \
             --core-repo "{{COORD_ID}}" \
             --tag "$TAG" \
             --child-dry-run "$DRY_RUN" \

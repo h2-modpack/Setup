@@ -21,14 +21,19 @@ Create the empty GitHub org first, then scaffold the pack from a standalone Setu
 
 ```bash
 git clone https://github.com/h2-modpack/Setup
-python Setup/scaffold/new_pack.py --pack-id "my-pack" --namespace adamantMyPack --org adamantMyPack
+python Setup/scaffold/new_pack.py \
+  --pack-id my-pack \
+  --pack-name "My Pack" \
+  --coordinator-package MyPack_Modpack \
+  --team adamantMyPack \
+  --org adamantMyPack
 cd ../my-pack-modpack
 python Setup/deploy/deploy_all.py --overwrite
 ```
 
 `new_pack.py` creates the shell repo and coordinator repo inside the org, wires Lib, Framework, coordinator, and Setup as submodules, and pushes the initial shell commit. The standalone Setup clone is deleted at the end because Setup re-enters the shell as a submodule.
 
-Pack-owned Thunderstore packages use the pack namespace. For example, `--pack-id speedrun --namespace adamantSpeedrun` creates `adamantSpeedrun-Speedrun_Modpack`. Shared Lib and Framework stay under the shared `adamant` Thunderstore namespace and the shared `h2-modpack` GitHub org.
+Pack-owned Thunderstore packages use the pack team/namespace. The pack scaffold does not infer public names from the internal pack id: `--team adamantSpeedrun --coordinator-package Speedrun_Modpack` creates `adamantSpeedrun-Speedrun_Modpack`. Shared Lib and Framework stay under the shared `adamant` Thunderstore namespace and the shared `h2-modpack` GitHub org.
 
 ## Add A Module
 

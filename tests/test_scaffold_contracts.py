@@ -18,7 +18,15 @@ from new_module import (  # noqa: E402
     validate_module_name,
     validate_package_name,
 )
-from new_pack import pack_id_to_name  # noqa: E402
+from new_pack import (  # noqa: E402
+    coordinator_alias_prefix,
+    coordinator_id,
+    validate_coordinator_package,
+    validate_org,
+    validate_pack_id,
+    validate_single_line,
+    validate_team,
+)
 
 
 CURRENT_MAIN_LUA = """
@@ -170,9 +178,42 @@ def test_new_module_title_normalization_is_display_only() -> None:
             raise AssertionError(f"invalid title accepted: {value!r}")
 
 
-def test_new_pack_uses_modpack_coordinator_suffix() -> None:
-    assert pack_id_to_name("speedrun") == "Speedrun_Modpack"
-    assert pack_id_to_name("run-director") == "RunDirector_Modpack"
+def test_new_pack_uses_explicit_coordinator_package() -> None:
+    assert coordinator_id("adamantSpeedrun", "Speedrun_Modpack") == "adamantSpeedrun-Speedrun_Modpack"
+    assert coordinator_id("adamantRunDirector", "RunDirector_Modpack") == "adamantRunDirector-RunDirector_Modpack"
+    assert coordinator_alias_prefix("Speedrun_Modpack") == "Speedrun"
+    assert coordinator_alias_prefix("RunDirector_Modpack") == "RunDirector"
+    assert coordinator_alias_prefix("CustomCoordinator") == "CustomCoordinator"
+
+
+def test_new_pack_validation_rejects_ambiguous_names() -> None:
+    validate_pack_id("speedrun")
+    validate_pack_id("run-director")
+    validate_single_line("Run Director", "--pack-name")
+    validate_team("adamantRunDirector")
+    validate_coordinator_package("RunDirector_Modpack")
+    validate_org("h2pack-rundirector")
+
+    invalid_cases = [
+        (validate_pack_id, "RunDirector"),
+        (validate_pack_id, "run_director"),
+        (validate_pack_id, "run--director"),
+        (lambda value: validate_single_line(value, "--pack-name"), ""),
+        (lambda value: validate_single_line(value, "--pack-name"), "Two\nLines"),
+        (validate_team, "_adamant"),
+        (validate_team, "adamant-speedrun"),
+        (validate_coordinator_package, "RunDirector-Modpack"),
+        (validate_coordinator_package, "RunDirector__Modpack"),
+        (validate_org, "-h2pack"),
+        (validate_org, "h2pack_rundirector"),
+    ]
+    for validator, value in invalid_cases:
+        try:
+            validator(value)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid new_pack value accepted: {value!r}")
 
 
 def test_coordinator_template_uses_current_framework_contract() -> None:

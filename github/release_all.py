@@ -35,8 +35,8 @@ class ReleaseError(Exception):
 @dataclass(frozen=True)
 class ReleaseConfig:
     org: str
-    namespace: str
-    pack_pascal: str
+    team: str
+    legacy_package_prefix: str
     core_repo: str
     root: Path = ROOT_DIR
     workflow: str = "release.yaml"
@@ -46,11 +46,11 @@ class ReleaseConfig:
 
     @property
     def module_prefix(self) -> str:
-        return f"{self.namespace}-"
+        return f"{self.team}-"
 
     @property
     def legacy_module_prefix(self) -> str:
-        return f"{self.namespace}-{self.pack_pascal}_"
+        return f"{self.team}-{self.legacy_package_prefix}_"
 
     def module_prefixes(self) -> list[str]:
         prefixes = [self.module_prefix, self.legacy_module_prefix]
@@ -121,26 +121,26 @@ def core_aliases(config: ReleaseConfig) -> set[str]:
         "Core",
         "Modpack",
         config.core_repo,
-        f"{config.pack_pascal}_Core",
-        f"{config.pack_pascal}_Modpack",
-        f"Modpack{config.pack_pascal}Core",
-        f"Modpack{config.pack_pascal}",
+        f"{config.legacy_package_prefix}_Core",
+        f"{config.legacy_package_prefix}_Modpack",
+        f"Modpack{config.legacy_package_prefix}Core",
+        f"Modpack{config.legacy_package_prefix}",
     }
 
-    namespace_prefix = f"{config.namespace}-"
-    if config.core_repo.startswith(namespace_prefix):
-        aliases.add(config.core_repo[len(namespace_prefix):])
+    team_prefix = f"{config.team}-"
+    if config.core_repo.startswith(team_prefix):
+        aliases.add(config.core_repo[len(team_prefix):])
 
     return aliases
 
 
 def module_aliases(config: ReleaseConfig, repo: str) -> set[str]:
     aliases = {repo}
-    namespace_prefix = f"{config.namespace}-"
-    if repo.startswith(namespace_prefix):
-        package_name = repo[len(namespace_prefix):]
+    team_prefix = f"{config.team}-"
+    if repo.startswith(team_prefix):
+        package_name = repo[len(team_prefix):]
         aliases.add(package_name)
-        legacy_package_prefix = f"{config.pack_pascal}_"
+        legacy_package_prefix = f"{config.legacy_package_prefix}_"
         if package_name.startswith(legacy_package_prefix):
             aliases.add(package_name[len(legacy_package_prefix):])
         else:
@@ -174,11 +174,11 @@ def normalize_release_target(
         return ("module", direct)
 
     candidates = [target]
-    if target.startswith(config.namespace + "-"):
+    if target.startswith(config.team + "-"):
         candidates.append(target)
-    elif target.startswith(config.pack_pascal + "_"):
-        candidates.append(f"{config.namespace}-{target}")
-        candidates.append(f"{config.namespace}-{target[len(config.pack_pascal) + 1:]}")
+    elif target.startswith(config.legacy_package_prefix + "_"):
+        candidates.append(f"{config.team}-{target}")
+        candidates.append(f"{config.team}-{target[len(config.legacy_package_prefix) + 1:]}")
     else:
         candidates.append(f"{config.module_prefix}{target}")
         candidates.append(f"{config.legacy_module_prefix}{target}")
@@ -190,15 +190,15 @@ def normalize_release_target(
             return ("module", repo)
 
     uses_legacy_repos = any(repo.startswith(config.legacy_module_prefix) for repo in available_module_repos)
-    if target.startswith(config.namespace + "-"):
+    if target.startswith(config.team + "-"):
         normalized = target
     elif uses_legacy_repos:
-        if target.startswith(config.pack_pascal + "_"):
-            normalized = f"{config.namespace}-{target}"
+        if target.startswith(config.legacy_package_prefix + "_"):
+            normalized = f"{config.team}-{target}"
         else:
             normalized = f"{config.legacy_module_prefix}{target}"
-    elif target.startswith(config.pack_pascal + "_"):
-        normalized = f"{config.namespace}-{target[len(config.pack_pascal) + 1:]}"
+    elif target.startswith(config.legacy_package_prefix + "_"):
+        normalized = f"{config.team}-{target[len(config.legacy_package_prefix) + 1:]}"
     else:
         normalized = f"{config.module_prefix}{target}"
     raise ReleaseError(
@@ -451,8 +451,8 @@ def dispatch_release_plan(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Coordinate pack-wide release dispatches.")
     parser.add_argument("--org", required=True, help="GitHub org that owns the pack repos.")
-    parser.add_argument("--namespace", required=True, help="Thunderstore namespace / repo prefix.")
-    parser.add_argument("--pack-pascal", required=True, help="Pack id in PascalCase, e.g. RunDirector.")
+    parser.add_argument("--team", required=True, help="Thunderstore team / repo prefix.")
+    parser.add_argument("--legacy-package-prefix", required=True, help="Legacy package prefix used for old aliases, e.g. RunDirector.")
     parser.add_argument("--core-repo", required=True, help="Coordinator/core repo name.")
     parser.add_argument("--tag", required=True, help="Release version tag.")
     parser.add_argument("--targets", nargs="?", default="", const="", help="Comma-separated release targets. Blank means all.")
@@ -470,8 +470,8 @@ def main(argv: list[str] | None = None) -> int:
 
     config = ReleaseConfig(
         org=args.org,
-        namespace=args.namespace,
-        pack_pascal=args.pack_pascal,
+        team=args.team,
+        legacy_package_prefix=args.legacy_package_prefix,
         core_repo=args.core_repo,
         root=Path(args.root).resolve(),
         workflow=args.workflow,

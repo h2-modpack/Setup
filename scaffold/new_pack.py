@@ -5,26 +5,32 @@ Creates the coordinator GitHub repo automatically via the gh CLI.
 Clone Setup next to where you want the new pack, then run:
 
   git clone https://github.com/h2-modpack/Setup.git
-  python Setup/scaffold/new_pack.py --pack-id "speedrun" --namespace adamantSpeedrun --org my-org
+  python Setup/scaffold/new_pack.py \
+    --pack-id speedrun \
+    --pack-name "Speedrun" \
+    --coordinator-package Speedrun_Modpack \
+    --team adamantSpeedrun \
+    --org h2pack-speedrun
 
 The shell repo is created as a sibling of the Setup folder:
   ../speedrun-modpack/
 
 The standalone Setup clone is deleted at the end - it re-enters as a submodule.
 
-Naming convention:
-  --pack-id should be a single lowercase word (e.g. "speedrun", "hades", "pvp").
-  Multi-word pack IDs work but produce longer coordinator names.
+Naming contract:
+  --pack-id is the internal Framework id (lowercase letters, numbers, hyphens).
+  --pack-name is the in-game/window display name.
+  --coordinator-package is the Thunderstore package/repo/folder suffix.
+  --team is the Thunderstore namespace/team for pack-owned packages.
+  --org is the GitHub org where pack repos are created.
 
-  Given --pack-id "speedrun" --namespace "adamantSpeedrun":
+  Given --pack-id "speedrun", --coordinator-package "Speedrun_Modpack",
+  and --team "adamantSpeedrun":
     Shell repo:        speedrun-modpack
     Coordinator ID:    adamantSpeedrun-Speedrun_Modpack
     Coordinator repo:  adamantSpeedrun-Speedrun_Modpack
     Lib folder:        adamant-ModpackLib
     Framework folder:  adamant-ModpackFramework
-
-Optional:
-  [--title "Speedrun Modpack"]  default: title-case of pack-id
 
 After running:
   cd ../speedrun-modpack
@@ -36,6 +42,7 @@ import sys
 import shutil
 import argparse
 import json
+import re
 import tomllib
 from setup_common import rmtree, fill, write, run
 
@@ -141,19 +148,46 @@ CHANGELOG_MD = """\
 # MAIN
 # =============================================================================
 
-def pack_id_to_title(pack_id):
-    """'run-director' -> 'Run Director'"""
-    return " ".join(w.capitalize() for w in pack_id.replace("_", "-").split("-"))
+def validate_pack_id(value):
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value or ""):
+        raise ValueError("--pack-id must contain lowercase letters, numbers, and single hyphen separators only")
 
 
-def pack_id_to_pascal(pack_id):
-    """'speedrun' -> 'Speedrun',  'my-pack' -> 'MyPack'"""
-    return "".join(w.capitalize() for w in pack_id.replace("-", "_").split("_"))
+def validate_single_line(value, flag):
+    if value is None or not value.strip():
+        raise ValueError(f"{flag} must not be empty")
+    if "\n" in value or "\r" in value:
+        raise ValueError(f"{flag} must be a single line")
 
 
-def pack_id_to_name(pack_id):
-    """'speedrun' -> 'Speedrun_Modpack'"""
-    return pack_id_to_pascal(pack_id) + "_Modpack"
+def validate_team(value):
+    if not re.fullmatch(r"[A-Za-z0-9_]+", value or ""):
+        raise ValueError("--team must contain only letters, numbers, and underscores")
+    if value.startswith("_") or value.endswith("_"):
+        raise ValueError("--team must not start or end with '_'")
+
+
+def validate_coordinator_package(value):
+    if not re.fullmatch(r"[A-Za-z0-9_]+", value or ""):
+        raise ValueError("--coordinator-package must contain only letters, numbers, and underscores")
+    if value.startswith("_") or value.endswith("_") or "__" in value:
+        raise ValueError("--coordinator-package must not start/end with '_' or contain repeated underscores")
+
+
+def validate_org(value):
+    if not re.fullmatch(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", value or ""):
+        raise ValueError("--org must contain letters, numbers, and single hyphen separators only")
+
+
+def coordinator_id(team, coordinator_package):
+    return f"{team}-{coordinator_package}"
+
+
+def coordinator_alias_prefix(coordinator_package):
+    for suffix in ("_Modpack", "_Core"):
+        if coordinator_package.endswith(suffix):
+            return coordinator_package[:-len(suffix)]
+    return coordinator_package
 
 
 def read_package_version(toml_path):
@@ -169,47 +203,73 @@ def read_package_version(toml_path):
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new modpack shell repo")
     parser.add_argument("--pack-id",   required=True,  help="Pack ID used in Framework.createPack - single word preferred (e.g. 'speedrun')")
-    parser.add_argument("--namespace", required=True,  help="Pack Thunderstore namespace/team (e.g. 'adamantSpeedrun')")
+    parser.add_argument("--pack-name", required=True, help="In-game/window display name for the pack (e.g. 'Speedrun')")
+    parser.add_argument("--coordinator-package", required=True, help="Coordinator Thunderstore package/repo suffix (e.g. 'Speedrun_Modpack')")
+    parser.add_argument("--team", required=True, help="Pack Thunderstore namespace/team (e.g. 'adamantSpeedrun')")
     parser.add_argument("--shared-namespace", default="adamant", help="Shared infrastructure namespace for Lib/Framework deps (default: adamant)")
-    parser.add_argument("--title",     default=None,   help="Window title (default: title-case of pack-id)")
     parser.add_argument("--org",       required=True,        help="GitHub org (e.g. 'my-org')")
     args = parser.parse_args()
 
-    title  = args.title or pack_id_to_title(args.pack_id)
-    name   = pack_id_to_name(args.pack_id)
+    try:
+        validate_pack_id(args.pack_id)
+        validate_single_line(args.pack_name, "--pack-name")
+        validate_coordinator_package(args.coordinator_package)
+        validate_team(args.team)
+        validate_org(args.org)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
+
+    title  = args.pack_name.strip()
+    name   = args.coordinator_package
     output = os.path.join(ROOT_DIR, f"{args.pack_id}-modpack")
 
     shell_repo       = f"{args.pack_id}-modpack"
     shell_url        = f"https://github.com/{args.org}/{shell_repo}.git"
-    coordinator_id   = f"{args.namespace}-{name}"                          # adamantSpeedrun-Speedrun_Modpack
-    coordinator_repo = coordinator_id                                       # GitHub repo name = Thunderstore ID = local folder
+    coord_id         = coordinator_id(args.team, name)
+    coordinator_repo = coord_id                                             # GitHub repo name = Thunderstore ID = local folder
     coordinator_url  = f"https://github.com/{args.org}/{coordinator_repo}.git"
 
     print(f"""
-  What will be created
+  What will be created and deployed
   ---------------------------------------------
-  Window title   : {title}
-  Pack ID        : {args.pack_id}
-  Pack namespace : {args.namespace}
-  Shared deps    : {args.shared_namespace}-ModpackLib, {args.shared_namespace}-ModpackFramework
-  Local output   : {output}
+  Pack identity
+    Internal pack id       : {args.pack_id}
+    In-game pack name      : {title}
+
+  Thunderstore
+    Team / namespace       : {args.team}
+    Coordinator package    : {name}
+    Coordinator full ID    : {coord_id}
+    Shared deps            : {args.shared_namespace}-ModpackLib, {args.shared_namespace}-ModpackFramework
+
+  Local
+    Output folder          : {output}
+    Coordinator folder     : {os.path.join(output, coord_id)}
 
   GitHub repos (will be created under {args.org}/)
-    Shell        : {shell_repo}
-    Coordinator  : {coordinator_repo}  (github.com/{args.org}/{coordinator_repo})
+    Shell                  : {shell_repo}
+    Coordinator            : {coordinator_repo}  (github.com/{args.org}/{coordinator_repo})
 
   Submodule folders
-    Lib          : adamant-ModpackLib
-    Framework    : adamant-ModpackFramework
-    Coordinator  : {coordinator_id}
+    Lib                    : adamant-ModpackLib
+    Framework              : adamant-ModpackFramework
+    Coordinator            : {coord_id}
 
-  Thunderstore IDs
-    Coordinator  : {coordinator_id}  (namespace={args.namespace}, name={name})
+  Side effects
+    Creates GitHub repos, initializes commits, pushes to origin, wires
+    submodules, and deletes the standalone Setup clone after Setup is added
+    back as a submodule.
   ---------------------------------------------""")
 
-    answer = input("  Proceed? [y/N] ").strip().lower()
+    answer = input("  Proceed with these side effects? [y/N] ").strip().lower()
     if answer != "y":
         print("  Aborted.")
+        sys.exit(0)
+
+    confirmation = input(f"  Type the coordinator full ID to confirm ({coord_id}): ").strip()
+    if confirmation != coord_id:
+        print("  Confirmation did not match. Aborted.")
         sys.exit(0)
 
     if os.path.exists(output):
@@ -247,7 +307,7 @@ def main():
     # -------------------------------------------------------------------------
     # Coordinator - generate files, push to new GitHub repo, then add as submodule
     # -------------------------------------------------------------------------
-    coord_dir = os.path.join(output, coordinator_id)
+    coord_dir = os.path.join(output, coord_id)
 
     print(f"\n>>> Creating coordinator repo {args.org}/{coordinator_repo}...")
     run([
@@ -260,11 +320,11 @@ def main():
     # so the remote has a commit before we add it as a submodule.
     print(f"\n>>> Initialising coordinator and pushing initial commit...")
     subs = dict(
-        COORD_ID     = coordinator_id,
+        COORD_ID     = coord_id,
         PACK_ID      = args.pack_id,
-        PACK_PASCAL  = pack_id_to_pascal(args.pack_id),
+        LEGACY_PACKAGE_PREFIX = coordinator_alias_prefix(name),
         WINDOW_TITLE = title,
-        NAMESPACE    = args.namespace,
+        NAMESPACE    = args.team,
         NAME         = name,
         ORG          = args.org,
         SHELL_REPO   = shell_repo,
@@ -293,7 +353,7 @@ def main():
     shutil.copy2(os.path.join(SETUP_DIR, "LICENSE"),  os.path.join(coord_dir, "LICENSE"))
 
     manifest = {
-        "namespace":      args.namespace,
+        "namespace":      args.team,
         "name":           name,
         "description":    f"{title} modpack coordinator.",
         "version_number": "1.0.0",
@@ -307,7 +367,7 @@ def main():
             f"{args.shared_namespace}-ModpackFramework-{framework_version}",
         ],
         "website_url": f"https://github.com/{args.org}/{coordinator_repo}",
-        "FullName": coordinator_id,
+        "FullName": coord_id,
     }
     write(os.path.join(coord_dir, "src", "manifest.json"), json.dumps(manifest, indent=2) + "\n")
 
@@ -321,7 +381,7 @@ def main():
     rmtree(coord_dir)
 
     print(f"\n>>> Adding coordinator as submodule...")
-    run(["git", "submodule", "add", "--branch", "main", coordinator_url, coordinator_id], cwd=output)
+    run(["git", "submodule", "add", "--branch", "main", coordinator_url, coord_id], cwd=output)
 
     # -------------------------------------------------------------------------
     # Submodules/ placeholder
@@ -385,7 +445,17 @@ def main():
     Before running release automation, create these org Actions secrets
     with All repositories access:
       TCLI_AUTH_TOKEN
+        Thunderstore token for the pack namespace/team ({args.team}).
+        Used by each coordinator/module release workflow to publish packages.
+
       RELEASE_DISPATCH_TOKEN
+        GitHub fine-grained PAT for {args.org} with Actions read/write and
+        Contents read access. Used by the shell Release All workflow to
+        dispatch coordinator/module release workflows.
+
+    Prefer org-level secrets over repo-level secrets for this pack org. If a
+    repo-level secret with the same name exists, GitHub Actions uses the
+    repo-level value and it can mask the org-level one.
 
   To add game submodules:
     git submodule add --branch main <url> Submodules/<name>
