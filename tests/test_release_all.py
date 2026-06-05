@@ -114,6 +114,32 @@ def test_empty_target_list_is_rejected() -> None:
     assert_raises("No release targets", lambda: build_plan("1.2.1", " , , "))
 
 
+def test_dispatch_fields_include_generic_repo_fields() -> None:
+    fields = release_all.build_dispatch_fields(
+        "1.2.1",
+        True,
+        ["include-private-padding=true"],
+    )
+    assert_equal(fields, [
+        "tag=1.2.1",
+        "is-dry-run=true",
+        "include-private-padding=true",
+    ], "dispatch fields")
+
+
+def test_parse_repo_fields_groups_fields_by_repo() -> None:
+    fields = release_all.parse_repo_fields(
+        [
+            "adamantRunDirector-BoonBans:include-private-padding=true",
+            "adamantRunDirector-GodPool:custom=value",
+        ]
+    )
+    assert_equal(fields, {
+        "adamantRunDirector-BoonBans": ["include-private-padding=true"],
+        "adamantRunDirector-GodPool": ["custom=value"],
+    }, "repo fields")
+
+
 def main() -> int:
     tests = [
         test_mass_release_selects_all_modules_and_core,
@@ -124,6 +150,8 @@ def main() -> int:
         test_mass_release_requires_zero_patch,
         test_targeted_release_requires_nonzero_patch,
         test_empty_target_list_is_rejected,
+        test_dispatch_fields_include_generic_repo_fields,
+        test_parse_repo_fields_groups_fields_by_repo,
     ]
 
     for test in tests:

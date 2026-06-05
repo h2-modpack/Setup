@@ -224,6 +224,24 @@ def print_plan(plan: ReleasePlan, config: ReleaseConfig) -> None:
         print(f"  - {config.core_repo}")
 
 
+def parse_repo_fields(raw_fields: list[str] | None) -> dict[str, list[str]]:
+    repo_fields: dict[str, list[str]] = {}
+    for raw in raw_fields or []:
+        value = (raw or "").strip()
+        if not value:
+            continue
+
+        repo, separator, field = value.partition(":")
+        if not separator or not repo.strip() or not field.strip() or "=" not in field:
+            raise ReleaseError(
+                "Invalid repo workflow field",
+                "Repo workflow fields must use the repo:key=value format.",
+            )
+
+        repo_fields.setdefault(repo.strip(), []).append(field.strip())
+    return repo_fields
+
+
 def run_gh(args: list[str], capture_json: bool = False) -> object | None:
     result = subprocess.run(
         ["gh", *args],
@@ -264,6 +282,19 @@ def release_run_title(tag: str, child_dry_run: bool) -> str:
     return f"{'Dry-run' if child_dry_run else 'Release'} {tag}"
 
 
+def build_dispatch_fields(
+    tag: str,
+    child_dry_run: bool,
+    extra_fields: list[str] | None = None,
+) -> list[str]:
+    fields = [
+        f"tag={tag}",
+        f"is-dry-run={'true' if child_dry_run else 'false'}",
+    ]
+    fields.extend(extra_fields or [])
+    return fields
+
+
 def find_new_release_run(
     config: ReleaseConfig,
     repo: str,
@@ -297,7 +328,13 @@ def find_new_release_run(
     return int(candidates[0]["databaseId"])
 
 
-def dispatch_repo(config: ReleaseConfig, repo: str, tag: str, child_dry_run: bool) -> int:
+def dispatch_repo(
+    config: ReleaseConfig,
+    repo: str,
+    tag: str,
+    child_dry_run: bool,
+    repo_fields: dict[str, list[str]] | None = None,
+) -> int:
     print(f"--- Triggering: {config.org}/{repo} ---")
     baseline_ids = {
         int(run["databaseId"])
@@ -306,19 +343,21 @@ def dispatch_repo(config: ReleaseConfig, repo: str, tag: str, child_dry_run: boo
     }
     dispatched_after = datetime.now(timezone.utc)
 
-    run_gh(
-        [
-            "workflow",
-            "run",
-            config.workflow,
-            "--repo",
-            f"{config.org}/{repo}",
-            "--field",
-            f"tag={tag}",
-            "--field",
-            f"is-dry-run={'true' if child_dry_run else 'false'}",
-        ]
-    )
+    command = [
+        "workflow",
+        "run",
+        config.workflow,
+        "--repo",
+        f"{config.org}/{repo}",
+    ]
+    for field in build_dispatch_fields(
+        tag,
+        child_dry_run,
+        (repo_fields or {}).get(repo),
+    ):
+        command.extend(["--field", field])
+
+    run_gh(command)
 
     expected_title = release_run_title(tag, child_dry_run)
     for _ in range(config.poll_attempts):
@@ -356,6 +395,7 @@ def release_phase(
     repos: list[str],
     tag: str,
     child_dry_run: bool,
+    repo_fields: dict[str, list[str]] | None = None,
 ) -> int:
     if not repos:
         return 0
@@ -369,7 +409,13 @@ def release_phase(
     dispatch_failed = 0
     for repo in repos:
         try:
-            dispatched.append((repo, dispatch_repo(config, repo, tag, child_dry_run)))
+            dispatched.append((repo, dispatch_repo(
+                config,
+                repo,
+                tag,
+                child_dry_run,
+                repo_fields,
+            )))
         except (ReleaseError, subprocess.CalledProcessError) as exc:
             dispatch_failed += 1
             print(f"  FAILED to dispatch {config.org}/{repo}: {exc}")
@@ -403,10 +449,25 @@ def dispatch_release_plan(
     plan: ReleasePlan,
     tag: str,
     child_dry_run: bool,
+    repo_fields: dict[str, list[str]] | None = None,
 ) -> None:
-    succeeded = release_phase(config, "Module releases", plan.module_repos, tag, child_dry_run)
+    succeeded = release_phase(
+        config,
+        "Module releases",
+        plan.module_repos,
+        tag,
+        child_dry_run,
+        repo_fields,
+    )
     if plan.core_selected:
-        succeeded += release_phase(config, "Core release", [config.core_repo], tag, child_dry_run)
+        succeeded += release_phase(
+            config,
+            "Core release",
+            [config.core_repo],
+            tag,
+            child_dry_run,
+            repo_fields,
+        )
 
     print("")
     print("==========================================")
@@ -426,6 +487,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", default=str(ROOT_DIR), help="Shell repo root. Defaults to parent of ModpackTools/.")
     parser.add_argument("--workflow", default="release.yaml", help="Child workflow filename.")
     parser.add_argument("--branch", default="main", help="Child workflow branch.")
+    parser.add_argument(
+        "--repo-field",
+        action="append",
+        default=[],
+        help="Repo-specific workflow_dispatch field in repo:key=value format. May be repeated.",
+    )
     return parser
 
 
@@ -444,10 +511,17 @@ def main(argv: list[str] | None = None) -> int:
     child_dry_run = parse_bool(args.child_dry_run)
 
     try:
+        repo_fields = parse_repo_fields(args.repo_field)
         plan = build_release_plan(config, args.tag, args.targets)
         print_plan(plan, config)
         if not args.plan_only:
-            dispatch_release_plan(config, plan, args.tag, child_dry_run)
+            dispatch_release_plan(
+                config,
+                plan,
+                args.tag,
+                child_dry_run,
+                repo_fields,
+            )
         return 0
     except ReleaseError as exc:
         print(f"::error title={exc.title}::{exc.message}", file=sys.stderr)
