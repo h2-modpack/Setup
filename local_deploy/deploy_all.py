@@ -1,5 +1,5 @@
 """
-Full local deployment: staged package assets, manifests, symlinks, and git hooks.
+Full local deployment: staged package assets, manifests, profile links/copies, and git hooks.
 
 Usage: python deploy_all.py [--overwrite] [--profile NAME]
 """
@@ -12,7 +12,7 @@ from steps.common import base_parser
 STEPS = [
     ("Staging package assets (icon.png, LICENSE)", lambda args: assets.deploy(args.overwrite)),
     ("Generating manifests", lambda args: manifests.deploy(args.overwrite)),
-    ("Creating symlinks", lambda args: links.deploy(args.overwrite, args.profile)),
+    ("Deploying profile links", lambda args: links.deploy(args.overwrite, args.profile, args.profile_root, args.link_mode)),
     ("Configuring git hooks", lambda args: hooks.deploy(args.overwrite)),
 ]
 

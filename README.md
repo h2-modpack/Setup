@@ -58,6 +58,13 @@ ModpackTools/run ModpackTools/local_deploy/deploy_all.py --overwrite
 configures git hooks. Use `--overwrite` when regenerating files or links that
 already exist.
 
+When running from WSL with a Windows r2modman profile, deployment resolves the
+profile through `APPDATA` or by querying Windows directly, then copies package
+folders into the Windows profile. Same-side deploys keep using symlinks by
+default. Use `--link-mode copy` or `--link-mode symlink` to force one mode, and
+`--profile-root PATH` when the profile directory cannot be discovered
+automatically.
+
 ## Remote Maintenance And Release
 
 Normal release maintenance is:
@@ -146,4 +153,6 @@ Most scripts share these flags:
 |---|---|---|
 | `--overwrite` | off | Overwrite existing files or links instead of skipping |
 | `--profile NAME` | `h2-dev` | r2modman profile to deploy into |
+| `--profile-root PATH` | auto | Directory containing r2modman profile folders |
+| `--link-mode auto\|symlink\|copy` | `auto` | Use symlinks, copy folders, or auto-detect WSL-to-Windows copy deploy |
 | `--dry-run` | off | Show what would happen without making changes, where supported |
