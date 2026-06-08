@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ "$#" -lt 1 ]; then
+    echo "Usage: ModpackTools/run SCRIPT.py [args...]" >&2
+    exit 2
+fi
+
+is_python3() {
+    "$@" -c 'import sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1
+}
+
+if command -v python3 >/dev/null 2>&1 && is_python3 python3; then
+    exec python3 "$@"
+fi
+
+if command -v python >/dev/null 2>&1 && is_python3 python; then
+    exec python "$@"
+fi
+
+if command -v py >/dev/null 2>&1 && is_python3 py -3; then
+    exec py -3 "$@"
+fi
+
+echo "No Python 3 runner found. Install python3, python, or py -3." >&2
+exit 2

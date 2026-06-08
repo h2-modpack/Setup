@@ -25,9 +25,13 @@ ModpackTools is the ongoing toolbelt for an existing pack workspace:
 From the shell repo root:
 
 ```bash
-python ModpackTools/new_module/create.py --package-id My_Module --title "My Module"
-python ModpackTools/local_deploy/deploy_all.py --overwrite
+ModpackTools/run ModpackTools/new_module/create.py --package-id My_Module --title "My Module"
+ModpackTools/run ModpackTools/local_deploy/deploy_all.py --overwrite
 ```
+
+On Windows Command Prompt or PowerShell, use `ModpackTools\run.bat` instead of
+`ModpackTools/run`. The launcher picks an available Python 3 command
+(`python3`, `python`, or `py -3`).
 
 `create.py` creates the GitHub repo from
 [`ModpackModuleTemplate`](https://github.com/h2-modpack/ModpackModuleTemplate),
@@ -45,8 +49,8 @@ After cloning, scaffolding, or changing a pack locally, run the deploy step from
 the shell repo root:
 
 ```bash
-python ModpackTools/local_deploy/deploy_all.py
-python ModpackTools/local_deploy/deploy_all.py --overwrite
+ModpackTools/run ModpackTools/local_deploy/deploy_all.py
+ModpackTools/run ModpackTools/local_deploy/deploy_all.py --overwrite
 ```
 
 `deploy_all.py` stages each package's root `icon.png` and `LICENSE` into
@@ -86,19 +90,19 @@ If repos already exist under `Submodules/` but are not registered in
 `.gitmodules`:
 
 ```bash
-python ModpackTools/new_module/register_submodules.py
+ModpackTools/run ModpackTools/new_module/register_submodules.py
 ```
 
 After deleting module folders from `Submodules/`, prune stale entries:
 
 ```bash
-python ModpackTools/new_module/register_submodules.py --prune
+ModpackTools/run ModpackTools/new_module/register_submodules.py --prune
 ```
 
 To commit and push a shared change across all module repos:
 
 ```bash
-python ModpackTools/commit_submodules.py "fix: update config schema"
+ModpackTools/run ModpackTools/commit_submodules.py "fix: update config schema"
 ```
 
 Clean module repos are skipped.

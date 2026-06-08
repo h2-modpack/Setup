@@ -106,4 +106,4 @@ def update_coordinator_deps():
     open(coordinator_toml, "w", encoding="utf-8").write(new_text)
     print(f"  synced  coordinator deps ({len(names)} submodules)  ->  {os.path.relpath(coordinator_toml, ROOT_DIR)}")
     print()
-    print("  NOTE: Run `python ModpackTools/local_deploy/deploy_all.py --overwrite` to deploy changes to the game.")
+    print("  NOTE: Run `ModpackTools/run ModpackTools/local_deploy/deploy_all.py --overwrite` to deploy changes to the game.")

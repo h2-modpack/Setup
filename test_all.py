@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -24,12 +25,33 @@ class TestCommand:
 
 def find_lua_runner(explicit: str | None) -> str | None:
     if explicit:
-        return explicit
-    for candidate in ("lua52.exe", "lua5.2", "lua52", "lua"):
+        return explicit if is_lua52_runner(explicit) else None
+    for candidate in lua_runner_candidates():
         resolved = shutil.which(candidate)
-        if resolved:
+        if resolved and is_lua52_runner(resolved):
             return resolved
     return None
+
+
+def lua_runner_candidates(os_name: str | None = None) -> tuple[str, ...]:
+    current_os = os_name or os.name
+    if current_os == "nt":
+        return ("lua52.exe", "lua5.2", "lua52", "lua")
+    return ("lua5.2", "lua52", "lua", "lua52.exe")
+
+
+def is_lua52_runner(command: str) -> bool:
+    try:
+        result = subprocess.run(
+            [command, "-e", "assert(_VERSION == 'Lua 5.2', _VERSION)"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
 
 
 def discover_lua_tests(lua_runner: str) -> list[TestCommand]:
@@ -96,7 +118,7 @@ def main() -> int:
     if not args.python_only:
         lua_runner = find_lua_runner(args.lua)
         if not lua_runner:
-            print("Lua 5.2 runner not found. Install lua52.exe/lua5.2 or pass --lua.", file=sys.stderr)
+            print("Lua 5.2 runner not found. Install lua5.2/lua52/lua52.exe or pass --lua.", file=sys.stderr)
             return 2
         commands = discover_lua_tests(lua_runner) + commands
 
