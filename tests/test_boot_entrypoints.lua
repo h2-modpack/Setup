@@ -404,6 +404,7 @@ local function testConventionPackPipelineBoots()
     runCallbacks(callbacks.allModsLoaded, "on_all_mods_loaded")
 
     runCallbacks(callbacks.gameLoaded, "once_loaded.game")
+    runCallbacks(callbacks.alwaysDraw, "always_draw_imgui")
 
     local packRegistry = frameworkEnv.FrameworkPackRegistry
     local bootedPack = packRegistry and packRegistry.packs and packRegistry.packs[pack.packId]
