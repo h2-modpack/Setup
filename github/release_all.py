@@ -257,6 +257,34 @@ def run_gh(args: list[str], capture_json: bool = False) -> object | None:
     return json.loads(output)
 
 
+def release_exists(config: ReleaseConfig, repo: str, tag: str) -> bool:
+    result = subprocess.run(
+        [
+            "gh",
+            "release",
+            "view",
+            tag,
+            "--repo",
+            f"{config.org}/{repo}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return True
+
+    output = f"{result.stdout}\n{result.stderr}".casefold()
+    if "not found" in output or "could not find" in output:
+        return False
+
+    raise subprocess.CalledProcessError(
+        result.returncode,
+        result.args,
+        output=result.stdout,
+        stderr=result.stderr,
+    )
+
+
 def list_release_runs(config: ReleaseConfig, repo: str) -> list[dict]:
     data = run_gh(
         [
@@ -405,41 +433,30 @@ def release_phase(
     print(f"  {title}")
     print("==========================================")
 
-    dispatched: list[tuple[str, int]] = []
-    dispatch_failed = 0
+    succeeded = 0
     for repo in repos:
+        full_repo = f"{config.org}/{repo}"
         try:
-            dispatched.append((repo, dispatch_repo(
+            if not child_dry_run and release_exists(config, repo, tag):
+                print(f"--- Skipping: {full_repo} already has release {tag} ---")
+                succeeded += 1
+                continue
+
+            run_id = dispatch_repo(
                 config,
                 repo,
                 tag,
                 child_dry_run,
                 repo_fields,
-            )))
-        except (ReleaseError, subprocess.CalledProcessError) as exc:
-            dispatch_failed += 1
-            print(f"  FAILED to dispatch {config.org}/{repo}: {exc}")
-
-    if dispatch_failed > 0:
-        raise ReleaseError(
-            "Release dispatch failed",
-            f"{dispatch_failed} child workflow dispatch(es) failed during {title}.",
-        )
-
-    succeeded = 0
-    release_failed = 0
-    for repo, run_id in dispatched:
-        try:
+            )
             watch_repo(config, repo, run_id)
             succeeded += 1
-        except subprocess.CalledProcessError:
-            release_failed += 1
-
-    if release_failed > 0:
-        raise ReleaseError(
-            "Release failed",
-            f"{release_failed} child workflow run(s) failed during {title}.",
-        )
+        except (ReleaseError, subprocess.CalledProcessError) as exc:
+            raise ReleaseError(
+                "Release failed",
+                f"{full_repo} failed during {title}; stopping before remaining repos. "
+                f"Completed {succeeded} / {len(repos)} in this phase. {exc}",
+            ) from exc
 
     return succeeded
 

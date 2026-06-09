@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -140,6 +141,103 @@ def test_parse_repo_fields_groups_fields_by_repo() -> None:
     }, "repo fields")
 
 
+def test_release_phase_waits_for_each_repo_before_dispatching_next() -> None:
+    config = make_config()
+    calls: list[tuple[str, str]] = []
+    old_release_exists = release_all.release_exists
+    old_dispatch_repo = release_all.dispatch_repo
+    old_watch_repo = release_all.watch_repo
+
+    def fake_release_exists(_config, repo, _tag):
+        calls.append(("exists", repo))
+        return False
+
+    def fake_dispatch_repo(_config, repo, _tag, _child_dry_run, _repo_fields):
+        calls.append(("dispatch", repo))
+        return 100 + len(calls)
+
+    def fake_watch_repo(_config, repo, _run_id):
+        calls.append(("watch", repo))
+        if repo == "adamantRunDirector-BoonBans":
+            raise subprocess.CalledProcessError(1, ["gh", "run", "watch"])
+
+    try:
+        release_all.release_exists = fake_release_exists
+        release_all.dispatch_repo = fake_dispatch_repo
+        release_all.watch_repo = fake_watch_repo
+
+        exc = assert_raises(
+            "Release failed",
+            lambda: release_all.release_phase(
+                config,
+                "Module releases",
+                MODULE_REPOS,
+                "1.2.0",
+                False,
+            ),
+        )
+        if "Completed 1 / 3" not in exc.message:
+            raise AssertionError(f"unexpected failure message: {exc.message}")
+        assert_equal(calls, [
+            ("exists", "adamantRunDirector-BiomeControl"),
+            ("dispatch", "adamantRunDirector-BiomeControl"),
+            ("watch", "adamantRunDirector-BiomeControl"),
+            ("exists", "adamantRunDirector-BoonBans"),
+            ("dispatch", "adamantRunDirector-BoonBans"),
+            ("watch", "adamantRunDirector-BoonBans"),
+        ], "sequential release calls")
+    finally:
+        release_all.release_exists = old_release_exists
+        release_all.dispatch_repo = old_dispatch_repo
+        release_all.watch_repo = old_watch_repo
+
+
+def test_release_phase_skips_existing_releases() -> None:
+    config = make_config()
+    calls: list[tuple[str, str]] = []
+    old_release_exists = release_all.release_exists
+    old_dispatch_repo = release_all.dispatch_repo
+    old_watch_repo = release_all.watch_repo
+
+    def fake_release_exists(_config, repo, _tag):
+        calls.append(("exists", repo))
+        return repo == "adamantRunDirector-BoonBans"
+
+    def fake_dispatch_repo(_config, repo, _tag, _child_dry_run, _repo_fields):
+        calls.append(("dispatch", repo))
+        return 200 + len(calls)
+
+    def fake_watch_repo(_config, repo, _run_id):
+        calls.append(("watch", repo))
+
+    try:
+        release_all.release_exists = fake_release_exists
+        release_all.dispatch_repo = fake_dispatch_repo
+        release_all.watch_repo = fake_watch_repo
+
+        succeeded = release_all.release_phase(
+            config,
+            "Module releases",
+            MODULE_REPOS,
+            "1.2.0",
+            False,
+        )
+        assert_equal(succeeded, 3, "release success count")
+        assert_equal(calls, [
+            ("exists", "adamantRunDirector-BiomeControl"),
+            ("dispatch", "adamantRunDirector-BiomeControl"),
+            ("watch", "adamantRunDirector-BiomeControl"),
+            ("exists", "adamantRunDirector-BoonBans"),
+            ("exists", "adamantRunDirector-GodPool"),
+            ("dispatch", "adamantRunDirector-GodPool"),
+            ("watch", "adamantRunDirector-GodPool"),
+        ], "skip existing release calls")
+    finally:
+        release_all.release_exists = old_release_exists
+        release_all.dispatch_repo = old_dispatch_repo
+        release_all.watch_repo = old_watch_repo
+
+
 def main() -> int:
     tests = [
         test_mass_release_selects_all_modules_and_core,
@@ -152,6 +250,8 @@ def main() -> int:
         test_empty_target_list_is_rejected,
         test_dispatch_fields_include_generic_repo_fields,
         test_parse_repo_fields_groups_fields_by_repo,
+        test_release_phase_waits_for_each_repo_before_dispatching_next,
+        test_release_phase_skips_existing_releases,
     ]
 
     for test in tests:
