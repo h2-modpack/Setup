@@ -67,6 +67,9 @@ def discover_lua_tests(lua_runner: str) -> list[TestCommand]:
             test_file = repo / "tests" / "all.lua"
             if test_file.is_file():
                 commands.append(TestCommand(repo.name, repo, [lua_runner, "tests/all.lua"]))
+            integration_file = repo / "tests" / "integration.lua"
+            if integration_file.is_file():
+                commands.append(TestCommand(f"{repo.name} integration", repo, [lua_runner, "tests/integration.lua"]))
 
     tools_tests_dir = TOOLS_DIR / "tests"
     if tools_tests_dir.is_dir():
