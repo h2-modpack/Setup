@@ -13,9 +13,11 @@ if str(NEW_MODULE_DIR) not in sys.path:
 from create import (  # noqa: E402
     module_repo_name,
     validate_current_lib_contract,
+    validate_module_test_contract,
     parse_github_remote,
     validate_package_id,
     validate_single_line as validate_module_single_line,
+    write_module_test_contract,
 )
 
 
@@ -113,6 +115,35 @@ def test_create_validator_rejects_stale_contract() -> None:
             raise AssertionError("stale module template marker was accepted")
 
 
+def test_create_writes_standalone_module_test_contract() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write_template(root)
+        write_module_test_contract(
+            str(root),
+            "adamantRunDirector-GodPool",
+            "run-director",
+            "GodPool",
+        )
+        validate_module_test_contract(str(root))
+
+        workflow = (root / ".github" / "workflows" / "luacheck.yaml").read_text(encoding="utf-8")
+        all_lua = (root / "tests" / "all.lua").read_text(encoding="utf-8")
+        entrypoint_lua = (root / "tests" / "TestEntrypoint.lua").read_text(encoding="utf-8")
+
+        assert "path: Submodules/${{ github.event.repository.name }}" in workflow
+        assert "repository: h2-modpack/ModpackTools" in workflow
+        assert "repository: h2-modpack/adamant-ModpackLib" in workflow
+        assert "working-directory: Submodules/${{ github.event.repository.name }}" in workflow
+        assert "find tests -type f -name '*.lua' -print0" in workflow
+        assert "lua tests/all.lua" in workflow
+        assert 'require("tests/TestEntrypoint")' in all_lua
+        assert 'dofile("../../ModpackTools/tests/module_entrypoint_harness.lua")' in entrypoint_lua
+        assert 'pluginGuid = "adamantRunDirector-GodPool"' in entrypoint_lua
+        assert 'lu.assertEquals(boot.liveModule.getModuleId(), "GodPool")' in entrypoint_lua
+        assert 'lu.assertEquals(boot.liveModule.getPackId(), "run-director")' in entrypoint_lua
+
+
 def test_create_package_id_validation_matches_lib_identifier_shape() -> None:
     validate_package_id("Gameplay_QoL")
     validate_package_id("Balance_Changes")
@@ -156,3 +187,23 @@ def test_create_remote_parser_reads_github_org_and_repo() -> None:
         "run-director-modpack",
     )
     assert parse_github_remote("https://example.com/not-github/repo.git") == (None, None)
+
+
+def main() -> int:
+    tests = [
+        test_create_validator_accepts_current_contract,
+        test_create_validator_rejects_stale_contract,
+        test_create_writes_standalone_module_test_contract,
+        test_create_package_id_validation_matches_lib_identifier_shape,
+        test_create_repo_name_uses_pack_namespace_without_pack_prefix,
+        test_create_title_is_explicit_display_identity,
+        test_create_remote_parser_reads_github_org_and_repo,
+    ]
+    for test in tests:
+        test()
+    print(f"{len(tests)} new_module contract tests passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

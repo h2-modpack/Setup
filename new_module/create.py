@@ -214,6 +214,98 @@ def remove_if_exists(path):
         os.remove(path)
 
 
+def write_text_file(path, content):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content)
+
+
+def render_module_entrypoint_test(repo_name, pack_id, package_id):
+    return (
+        MODULE_TEST_ENTRYPOINT_LUA
+        .replace("{{PLUGIN_GUID}}", repo_name)
+        .replace("{{PACK_ID}}", pack_id)
+        .replace("{{MODULE_ID}}", package_id)
+    )
+
+
+def write_module_test_contract(local_path, repo_name, pack_id, package_id):
+    write_text_file(
+        os.path.join(local_path, ".github", "workflows", "luacheck.yaml"),
+        MODULE_LUA_VALIDATION_WORKFLOW,
+    )
+    write_text_file(os.path.join(local_path, "tests", "all.lua"), MODULE_TEST_ALL_LUA)
+    write_text_file(
+        os.path.join(local_path, "tests", "TestEntrypoint.lua"),
+        render_module_entrypoint_test(repo_name, pack_id, package_id),
+    )
+
+
+def validate_module_test_contract(local_path):
+    workflow_path = os.path.join(local_path, ".github", "workflows", "luacheck.yaml")
+    all_path = os.path.join(local_path, "tests", "all.lua")
+    entrypoint_path = os.path.join(local_path, "tests", "TestEntrypoint.lua")
+
+    hits = []
+    for path in (workflow_path, all_path, entrypoint_path):
+        if not os.path.exists(path):
+            hits.append(f"{os.path.relpath(path, local_path)}: missing generated test contract file")
+
+    if hits:
+        details = "\n  - ".join(hits)
+        raise RuntimeError(
+            "Generated module test contract is incomplete:\n"
+            f"  - {details}"
+        )
+
+    workflow_content = read_file(workflow_path)
+    all_content = read_file(all_path)
+    entrypoint_content = read_file(entrypoint_path)
+
+    workflow_markers = [
+        "path: Submodules/${{ github.event.repository.name }}",
+        "repository: h2-modpack/ModpackTools",
+        "path: ModpackTools",
+        "repository: h2-modpack/adamant-ModpackLib",
+        "path: adamant-ModpackLib",
+        "luarocks install luacheck",
+        "luarocks install luaunit",
+        "working-directory: Submodules/${{ github.event.repository.name }}",
+        "find tests -type f -name '*.lua' -print0",
+        "lua tests/all.lua",
+    ]
+    all_markers = [
+        'require("tests/TestEntrypoint")',
+        'require("luaunit")',
+    ]
+    entrypoint_markers = [
+        'dofile("../../ModpackTools/tests/module_entrypoint_harness.lua")',
+        "harness.bootModule",
+        "pluginGuid =",
+        'moduleSrcDir = "src"',
+        "getOwnerId()",
+        "getModuleId()",
+        "getPackId()",
+    ]
+
+    for marker in workflow_markers:
+        if marker not in workflow_content:
+            hits.append(f"{os.path.relpath(workflow_path, local_path)}: missing workflow marker '{marker}'")
+    for marker in all_markers:
+        if marker not in all_content:
+            hits.append(f"{os.path.relpath(all_path, local_path)}: missing test runner marker '{marker}'")
+    for marker in entrypoint_markers:
+        if marker not in entrypoint_content:
+            hits.append(f"{os.path.relpath(entrypoint_path, local_path)}: missing entrypoint marker '{marker}'")
+
+    if hits:
+        details = "\n  - ".join(hits)
+        raise RuntimeError(
+            "Generated module test contract is incomplete:\n"
+            f"  - {details}"
+        )
+
+
 def validate_current_lib_contract(local_path):
     """Fail fast if the external module template is missing required scaffold markers."""
     src_dir = os.path.join(local_path, "src")
@@ -347,6 +439,97 @@ Install using r2modman. In game, open the {pack_title} menu and configure this m
 ## More Information
 
 - [{pack_title} modpack]({shell_url})
+"""
+
+
+MODULE_LUA_VALIDATION_WORKFLOW = """\
+name: Lua Validation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout module
+        uses: actions/checkout@v4
+        with:
+          path: Submodules/${{ github.event.repository.name }}
+
+      - name: Checkout ModpackTools
+        uses: actions/checkout@v4
+        with:
+          repository: h2-modpack/ModpackTools
+          path: ModpackTools
+
+      - name: Checkout Lib
+        uses: actions/checkout@v4
+        with:
+          repository: h2-modpack/adamant-ModpackLib
+          path: adamant-ModpackLib
+
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.2"
+
+      - name: Setup Luarocks
+        uses: leafo/gh-actions-luarocks@v4
+
+      - name: Install validation tools
+        run: |
+          luarocks install luacheck
+          luarocks install luaunit
+
+      - name: Run Luacheck
+        working-directory: Submodules/${{ github.event.repository.name }}
+        run: luacheck src/
+
+      - name: Parse Lua sources
+        working-directory: Submodules/${{ github.event.repository.name }}
+        run: |
+          find src -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac -p
+          find tests -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac -p
+
+      - name: Run tests
+        working-directory: Submodules/${{ github.event.repository.name }}
+        run: lua tests/all.lua
+"""
+
+
+MODULE_TEST_ALL_LUA = """\
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
+require("tests/TestEntrypoint")
+
+local lu = require("luaunit")
+os.exit(lu.LuaUnit.run())
+"""
+
+
+MODULE_TEST_ENTRYPOINT_LUA = """\
+local lu = require("luaunit")
+local harness = dofile("../../ModpackTools/tests/module_entrypoint_harness.lua")
+
+TestEntrypoint = {}
+
+function TestEntrypoint:testMainLuaBootsRealModule()
+    local boot = harness.bootModule({
+        pluginGuid = "{{PLUGIN_GUID}}",
+        moduleSrcDir = "src",
+    })
+
+    lu.assertNotNil(boot.liveModule)
+    lu.assertEquals(boot.liveModule.getOwnerId(), "{{PLUGIN_GUID}}")
+    lu.assertEquals(boot.liveModule.getModuleId(), "{{MODULE_ID}}")
+    lu.assertEquals(boot.liveModule.getPackId(), "{{PACK_ID}}")
+    lu.assertEquals(#boot.callbacks.imgui, 1)
+    lu.assertEquals(#boot.callbacks.menuBar, 2)
+end
 """
 
 
@@ -499,6 +682,10 @@ def main():
             f'local PACK_ID = "{pack_id}"',
     })
     validate_current_lib_contract(local_path)
+
+    print("\n>>> Writing module test contract...")
+    write_module_test_contract(local_path, repo_name, pack_id, args.package_id)
+    validate_module_test_contract(local_path)
 
     # -------------------------------------------------------------------------
     # Wire git hooks
