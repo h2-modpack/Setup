@@ -379,7 +379,6 @@ local function installSyntheticModules(pack)
         rom.mods[module.dir] = {}
         local host = libApi.createModule({
             pluginGuid = module.dir,
-            config = {},
             modpack = pack.packId,
             id = module.id,
             name = module.id,
