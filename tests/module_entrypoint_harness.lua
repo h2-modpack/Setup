@@ -139,7 +139,6 @@ local function createBaseEnv()
     env._G = env
     env.public = nil
     env._PLUGIN = nil
-    env.FrameworkPackRegistry = false
     installBit32Fallback(env)
 
     local callbacks = {
