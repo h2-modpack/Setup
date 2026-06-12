@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Validate modpack platform dependency presence.
 
-Run from a shell repo that has ModpackTools checked out as a submodule. Lib and
-Framework own their package versions in their checked-out thunderstore.toml
-files; the shell repo owns the assembled snapshot through submodule pointers.
+Run from a shell repo that has ModpackTools checked out as a submodule. Lib owns
+its package version in its checked-out thunderstore.toml file; the shell repo
+owns the assembled snapshot through submodule pointers.
 
 Thunderstore resolves dependencies to the latest available matching package, so
 this check verifies required dependency edges are present without enforcing exact
@@ -84,19 +84,15 @@ def find_coordinator_toml() -> Path:
 
 def main() -> int:
     lib_path = ROOT / "adamant-ModpackLib" / "thunderstore.toml"
-    framework_path = ROOT / "adamant-ModpackFramework" / "thunderstore.toml"
     module_root = ROOT / "Submodules"
 
     try:
         lib_data = load_toml(lib_path)
-        framework_data = load_toml(framework_path)
         coordinator_path = find_coordinator_toml()
         coordinator_data = load_toml(coordinator_path)
         module_paths = sorted(module_root.glob("*/thunderstore.toml"))
         lib_name = package_name(lib_path, lib_data)
-        framework_name = package_name(framework_path, framework_data)
         lib_version = package_version(lib_path, lib_data)
-        framework_version = package_version(framework_path, framework_data)
     except (OSError, ValueError) as exc:
         print(f"::error::{exc}")
         return 1
@@ -109,9 +105,7 @@ def main() -> int:
         if actual is not None:
             dependency_edges.append((rel(path), dependency, actual))
 
-    record_dependency(framework_path, framework_data, lib_name)
     record_dependency(coordinator_path, coordinator_data, lib_name)
-    record_dependency(coordinator_path, coordinator_data, framework_name)
 
     loaded_modules: list[tuple[str, str]] = []
     for module_path in module_paths:
@@ -127,7 +121,6 @@ def main() -> int:
 
     print("Platform version snapshot:")
     print(f"  {lib_name} {lib_version}")
-    print(f"  {framework_name} {framework_version}")
     print(f"  {package_name(coordinator_path, coordinator_data)} {package_version(coordinator_path, coordinator_data)}")
     print("  Modules:")
     if loaded_modules:

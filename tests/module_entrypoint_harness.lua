@@ -300,14 +300,15 @@ function Harness.bootModule(opts)
     local moduleEnv = loadPlugin(env, opts.pluginGuid, opts.moduleSrcDir)
     runGameLoaded(callbacks)
 
-    local frameworkRuntime = env.lib.createFrameworkRuntime("adamant-ModpackFramework")
+    local runtimeRegistry = libEnv.AdamantModpackLib_Runtime and libEnv.AdamantModpackLib_Runtime.registry
+    local liveModules = runtimeRegistry and runtimeRegistry.modules and runtimeRegistry.modules.live
 
     return {
         env = env,
         lib = env.lib,
         moduleEnv = moduleEnv,
         callbacks = callbacks,
-        liveModule = frameworkRuntime.modules.getLiveModule(opts.pluginGuid),
+        liveModule = liveModules and liveModules[opts.pluginGuid],
     }
 end
 

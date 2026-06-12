@@ -56,7 +56,7 @@ def is_lua52_runner(command: str) -> bool:
 
 def discover_lua_tests(lua_runner: str) -> list[TestCommand]:
     commands: list[TestCommand] = []
-    for repo in (ROOT_DIR / "adamant-ModpackLib", ROOT_DIR / "adamant-ModpackFramework"):
+    for repo in (ROOT_DIR / "adamant-ModpackLib",):
         test_file = repo / "tests" / "all.lua"
         if test_file.is_file():
             commands.append(TestCommand(repo.name, repo, [lua_runner, "tests/all.lua"]))
