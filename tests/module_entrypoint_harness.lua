@@ -1,5 +1,43 @@
 local Harness = {}
 
+local function firstExistingFile(paths)
+    for _, path in ipairs(paths) do
+        local handle = io.open(path, "r")
+        if handle then
+            handle:close()
+            return path
+        end
+    end
+    return nil
+end
+
+local function resolveLibSrcDir(override)
+    if type(override) == "string" and override ~= "" then
+        return override
+    end
+
+    local envDir = os.getenv("MODPACK_LIB_DIR")
+    local candidates = {}
+    if type(envDir) == "string" and envDir ~= "" then
+        candidates[#candidates + 1] = envDir
+        candidates[#candidates + 1] = envDir .. "/src"
+    end
+    candidates[#candidates + 1] = ".modpacklib/src"
+    candidates[#candidates + 1] = "../../adamant-ModpackLib/src"
+
+    local files = {}
+    for index, path in ipairs(candidates) do
+        files[index] = path .. "/main.lua"
+    end
+
+    local mainFile = firstExistingFile(files)
+    if mainFile then
+        local srcDir = mainFile:gsub("/main%.lua$", "")
+        return srcDir
+    end
+    return candidates[1]
+end
+
 local function deepCopy(value)
     if type(value) ~= "table" then
         return value
@@ -292,7 +330,7 @@ function Harness.bootModule(opts)
         opts.configureEnv(env)
     end
 
-    local libEnv = loadPlugin(env, "adamant-ModpackLib", opts.libSrcDir or "../../adamant-ModpackLib/src")
+    local libEnv = loadPlugin(env, "adamant-ModpackLib", resolveLibSrcDir(opts.libSrcDir))
     env.lib = libEnv.public
     env.rom.mods["adamant-ModpackLib"] = env.lib
 
