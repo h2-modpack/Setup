@@ -10,6 +10,7 @@ NEW_MODULE_DIR = TOOLS_DIR / "new_module"
 if str(NEW_MODULE_DIR) not in sys.path:
     sys.path.insert(0, str(NEW_MODULE_DIR))
 
+import create as create_module  # noqa: E402
 from create import (  # noqa: E402
     module_repo_name,
     validate_current_lib_contract,
@@ -95,6 +96,36 @@ def write_template(root: Path, *, main: str = CURRENT_MAIN_LUA, logic: str = CUR
     (root / "src" / "mods" / "logic.lua").write_text(logic, encoding="utf-8")
 
 
+def write_coordinator(root: Path, display_name_marker: str) -> None:
+    coordinator = root / "adamantRunDirector-RunDirector_Modpack"
+    (coordinator / "src").mkdir(parents=True)
+    (coordinator / "thunderstore.toml").write_text(
+        """
+[package]
+namespace = "adamantRunDirector"
+name = "RunDirector_Modpack"
+versionNumber = "1.0.0"
+""",
+        encoding="utf-8",
+    )
+    (coordinator / "src" / "main.lua").write_text(
+        f"""
+local PACK_ID = "run-director"
+local {display_name_marker} = "Run Director"
+""",
+        encoding="utf-8",
+    )
+
+
+def discover_coordinator_in(root: Path):
+    old_root = create_module.ROOT_DIR
+    create_module.ROOT_DIR = str(root)
+    try:
+        return create_module.discover_coordinator()
+    finally:
+        create_module.ROOT_DIR = old_root
+
+
 def test_create_validator_accepts_current_contract() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -142,6 +173,29 @@ def test_create_writes_standalone_module_test_contract() -> None:
         assert 'pluginGuid = "adamantRunDirector-GodPool"' in entrypoint_lua
         assert 'lu.assertEquals(boot.liveModule.getModuleId(), "GodPool")' in entrypoint_lua
         assert 'lu.assertEquals(boot.liveModule.getPackId(), "run-director")' in entrypoint_lua
+
+
+def test_discover_coordinator_reads_pack_display_name() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write_coordinator(root, "PACK_DISPLAY_NAME")
+
+        coordinator = discover_coordinator_in(root)
+
+        assert coordinator["pack_id"] == "run-director"
+        assert coordinator["pack_name"] == "Run Director"
+        assert coordinator["team"] == "adamantRunDirector"
+        assert coordinator["coordinator_package"] == "RunDirector_Modpack"
+
+
+def test_discover_coordinator_accepts_legacy_window_title() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write_coordinator(root, "WINDOW_TITLE")
+
+        coordinator = discover_coordinator_in(root)
+
+        assert coordinator["pack_name"] == "Run Director"
 
 
 def test_create_package_id_validation_matches_lib_identifier_shape() -> None:
@@ -194,6 +248,8 @@ def main() -> int:
         test_create_validator_accepts_current_contract,
         test_create_validator_rejects_stale_contract,
         test_create_writes_standalone_module_test_contract,
+        test_discover_coordinator_reads_pack_display_name,
+        test_discover_coordinator_accepts_legacy_window_title,
         test_create_package_id_validation_matches_lib_identifier_shape,
         test_create_repo_name_uses_pack_namespace_without_pack_prefix,
         test_create_title_is_explicit_display_identity,

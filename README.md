@@ -41,7 +41,7 @@ fills in module identity, commits the initial repo, registers it under
 Generated module package names do not include the pack prefix because the pack
 team already carries that identity. For example, in a pack using
 `team = adamantSpeedrun`, `--package-id LiveSplit --title "LiveSplit"` creates
-`adamantSpeedrun-LiveSplit`. The package id is also the Lib/Framework module id.
+`adamantSpeedrun-LiveSplit`. The package id is also the Lib module id.
 
 ## Local Deployment
 
@@ -69,7 +69,7 @@ automatically.
 
 Normal release maintenance is:
 
-1. Module, coordinator, Lib, or Framework repos change and are pushed.
+1. Module, coordinator, or Lib repos change and are pushed.
 2. Update and commit the shell submodule pointers as part of that development work.
 3. Run `Release All` from the shell repo when publishing the pack.
 

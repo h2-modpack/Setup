@@ -9,12 +9,12 @@ Usage (run from the shell repo root):
   python ModpackTools/new_module/create.py --package-id LiveSplit --title "LiveSplit"
   python ModpackTools/new_module/create.py --package-id Gameplay_QoL --title "Gameplay QoL"
 
-  --package-id Thunderstore package suffix and Lib/Framework module id.
+  --package-id Thunderstore package suffix and Lib module id.
   --title      Human display name.
 
 Normally the script discovers pack identity from the shell repo:
   Pack ID      : coordinator src/main.lua PACK_ID
-  Pack name    : coordinator src/main.lua WINDOW_TITLE
+  Pack name    : coordinator src/main.lua PACK_DISPLAY_NAME
   Team         : coordinator thunderstore.toml package.namespace
   GitHub org   : shell repo origin remote
 
@@ -25,7 +25,7 @@ What will be created:
 
 GitHub repo, local folder, Thunderstore ID, and plugin GUID are all the same
 string so clone-then-deploy works without any manual renaming. The package id
-is also used as the Lib/Framework module id.
+is also used as the Lib module id.
 """
 
 import os
@@ -45,7 +45,7 @@ TEMPLATE_REPO  = "h2-modpack/ModpackModuleTemplate"
 
 
 def validate_package_id(value):
-    """Thunderstore package suffix and Lib/Framework module id."""
+    """Thunderstore package suffix and Lib module id."""
     if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value or ""):
         raise ValueError("--package-id must start with a letter and contain only letters, numbers, and underscores")
     if value.startswith("_") or value.endswith("_") or "__" in value:
@@ -115,6 +115,12 @@ def extract_lua_string(content, name, path):
     return match.group(1)
 
 
+def extract_optional_lua_string(content, name):
+    pattern = rf"\b{name}\s*=\s*['\"]([^'\"]+)['\"]"
+    match = re.search(pattern, content)
+    return match.group(1) if match else None
+
+
 def discover_coordinator():
     hits = []
     for name in sorted(os.listdir(ROOT_DIR)):
@@ -140,9 +146,16 @@ def discover_coordinator():
 
     hit = hits[0]
     main = read_file(hit["main_path"])
+    pack_name = (
+        extract_optional_lua_string(main, "PACK_DISPLAY_NAME")
+        or extract_optional_lua_string(main, "WINDOW_TITLE")
+    )
+    if not pack_name:
+        raise RuntimeError(f"Could not find PACK_DISPLAY_NAME or WINDOW_TITLE string in {hit['main_path']}")
+
     return {
         "pack_id": extract_lua_string(main, "PACK_ID", hit["main_path"]),
-        "pack_name": extract_lua_string(main, "WINDOW_TITLE", hit["main_path"]),
+        "pack_name": pack_name,
         "team": hit["team"],
         "coordinator_package": hit["package"],
     }
@@ -539,7 +552,7 @@ end
 
 def main():
     parser = argparse.ArgumentParser(description="Scaffold a new module repo from template")
-    parser.add_argument("--package-id", required=True, help="Thunderstore package suffix and Lib/Framework module id")
+    parser.add_argument("--package-id", required=True, help="Thunderstore package suffix and Lib module id")
     parser.add_argument("--title", required=True, help="Human display name (e.g. 'Gameplay QoL')")
     parser.add_argument("--pack-id", default=None, help="Override discovered pack id")
     parser.add_argument("--pack-name", default=None, help="Override discovered pack display name")
