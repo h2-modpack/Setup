@@ -305,6 +305,7 @@ local function resetWorld()
         },
     }
 
+    AdamantModpackLib_Runtime = nil
     FrameworkPackRegistry = nil
     lib = nil
     Framework = nil
@@ -366,11 +367,10 @@ local function runCallbacks(callbacks, label)
     end
 end
 
-local function loadLibAndFramework()
+local function loadLib()
     local libEnv = loadPlugin("adamant-ModpackLib", "adamant-ModpackLib/src")
-    local frameworkEnv = loadPlugin("adamant-ModpackFramework", "adamant-ModpackFramework/src")
-    assertEquals(type(frameworkEnv.public.createPack), "function", "Framework.createPack export")
-    return libEnv, frameworkEnv
+    assertEquals(type(libEnv.public.modpack.createPack), "function", "Modpack.createPack export")
+    return libEnv
 end
 
 local function installSyntheticModules(pack)
@@ -395,7 +395,7 @@ end
 local function testConventionPackPipelineBoots()
     local pack = discoverPack()
     local callbacks = resetWorld()
-    local _, frameworkEnv = loadLibAndFramework()
+    local libEnv = loadLib()
 
     installSyntheticModules(pack)
     loadPlugin(pack.coreDir, pack.coreDir .. "/src")
@@ -405,14 +405,15 @@ local function testConventionPackPipelineBoots()
     runCallbacks(callbacks.gameLoaded, "once_loaded.game")
     runCallbacks(callbacks.alwaysDraw, "always_draw_imgui")
 
-    local packRegistry = frameworkEnv.FrameworkPackRegistry
+    local runtimeRegistry = libEnv.AdamantModpackLib_Runtime and libEnv.AdamantModpackLib_Runtime.registry
+    local packRegistry = runtimeRegistry and runtimeRegistry.modpacks
     local bootedPack = packRegistry and packRegistry.packs and packRegistry.packs[pack.packId]
-    assertTruthy(bootedPack, "Core did not initialize the Framework pack")
-    assertEquals(#bootedPack.moduleRegistry.modules, #pack.modules, "Framework discovered module count")
+    assertTruthy(bootedPack, "Core did not initialize the modpack")
+    assertEquals(#bootedPack.moduleRegistry.modules, #pack.modules, "Modpack discovered module count")
 
     for _, module in ipairs(pack.modules) do
         assertTruthy(bootedPack.moduleRegistry.modulesById[module.id],
-            "Framework did not discover " .. module.id)
+            "Modpack did not discover " .. module.id)
     end
 end
 
