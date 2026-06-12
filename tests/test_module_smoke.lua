@@ -63,17 +63,12 @@ local function discoverModules()
         local srcDir = "Submodules/" .. dir .. "/src"
         local main = tryReadFile(srcDir .. "/main.lua")
         if main then
-            local packId = string.match(main, "local%s+PACK_ID%s*=%s*['\"]([^'\"]+)['\"]")
-            local moduleId = string.match(main, "local%s+MODULE_ID%s*=%s*['\"]([^'\"]+)['\"]")
-            if packId and moduleId then
-                modules[#modules + 1] = {
-                    pluginGuid = dir,
-                    moduleSrcDir = srcDir,
-                    packId = packId,
-                    moduleId = moduleId,
-                    fixturePath = "Submodules/" .. dir .. "/tests/smoke_env.lua",
-                }
-            end
+            modules[#modules + 1] = {
+                pluginGuid = dir,
+                moduleSrcDir = srcDir,
+                mainPath = srcDir .. "/main.lua",
+                fixturePath = "Submodules/" .. dir .. "/tests/smoke_env.lua",
+            }
         end
     end
     return modules
@@ -81,29 +76,59 @@ end
 
 local function loadFixture(path)
     if not tryReadFile(path) then
-        return nil
+        return {}
     end
     local fixture = dofile(path)
     if type(fixture) == "function" then
-        return fixture
+        return { configureEnv = fixture }
     end
     if type(fixture) == "table" and type(fixture.configureEnv) == "function" then
-        return fixture.configureEnv
+        if fixture.expectedPackId ~= nil and type(fixture.expectedPackId) ~= "string" then
+            fail(path .. " expectedPackId must be a string")
+        end
+        if fixture.expectedModuleId ~= nil and type(fixture.expectedModuleId) ~= "string" then
+            fail(path .. " expectedModuleId must be a string")
+        end
+        return fixture
     end
     fail(path .. " must return a configureEnv function or table with configureEnv")
 end
 
 local function bootModule(module)
-    local boot = harness.bootModule({
-        pluginGuid = module.pluginGuid,
-        moduleSrcDir = module.moduleSrcDir,
-        configureEnv = loadFixture(module.fixturePath),
-    })
+    local fixture = loadFixture(module.fixturePath)
+    local ok, boot = xpcall(function()
+        return harness.bootModule({
+            pluginGuid = module.pluginGuid,
+            moduleSrcDir = module.moduleSrcDir,
+            configureEnv = fixture.configureEnv,
+        })
+    end, debug.traceback)
+
+    if not ok then
+        fail(string.format(
+            "%s boot smoke failed: %s\nIf this module needs game globals, add or update %s",
+            module.pluginGuid,
+            tostring(boot),
+            module.fixturePath
+        ))
+    end
 
     assertTruthy(boot.liveModule, module.pluginGuid .. " did not publish a live module")
     assertEquals(boot.liveModule.getOwnerId(), module.pluginGuid, module.pluginGuid .. " owner id")
-    assertEquals(boot.liveModule.getModuleId(), module.moduleId, module.pluginGuid .. " module id")
-    assertEquals(boot.liveModule.getPackId(), module.packId, module.pluginGuid .. " pack id")
+    assertTruthy(
+        type(boot.liveModule.getModuleId()) == "string" and boot.liveModule.getModuleId() ~= "",
+        module.pluginGuid .. " module id"
+    )
+    assertTruthy(
+        type(boot.liveModule.getPackId()) == "string" and boot.liveModule.getPackId() ~= "",
+        module.pluginGuid .. " pack id"
+    )
+    if fixture.expectedModuleId then
+        assertEquals(boot.liveModule.getModuleId(), fixture.expectedModuleId, module.pluginGuid .. " module id")
+    end
+    if fixture.expectedPackId then
+        assertEquals(boot.liveModule.getPackId(), fixture.expectedPackId, module.pluginGuid .. " pack id")
+    end
 end
 
 local modules = discoverModules()

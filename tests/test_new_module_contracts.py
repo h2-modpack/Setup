@@ -210,7 +210,9 @@ def test_create_writes_standalone_module_test_contract() -> None:
         assert "lua tests/all.lua" in workflow
         assert 'require("tests/TestEntrypoint")' not in all_lua
         assert "local function configureEnv(env)" in smoke_env_lua
-        assert "return configureEnv" in smoke_env_lua
+        assert 'expectedPackId = "run-director"' in smoke_env_lua
+        assert 'expectedModuleId = "GodPool"' in smoke_env_lua
+        assert "configureEnv = configureEnv" in smoke_env_lua
         assert "module_entrypoint_harness.lua" not in smoke_env_lua
 
 

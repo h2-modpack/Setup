@@ -241,7 +241,7 @@ def write_module_test_contract(local_path, repo_name, pack_id, package_id):
     write_text_file(os.path.join(local_path, "tests", "all.lua"), MODULE_TEST_ALL_LUA)
     write_text_file(
         os.path.join(local_path, "tests", "smoke_env.lua"),
-        MODULE_TEST_SMOKE_ENV_LUA,
+        MODULE_TEST_SMOKE_ENV_LUA.format(pack_id=pack_id, module_id=package_id),
     )
 
 
@@ -284,7 +284,9 @@ def validate_module_test_contract(local_path):
     ]
     smoke_env_markers = [
         "local function configureEnv(env)",
-        "return configureEnv",
+        'expectedPackId = "',
+        'expectedModuleId = "',
+        "configureEnv = configureEnv",
     ]
 
     for marker in workflow_markers:
@@ -513,7 +515,11 @@ local function configureEnv(env)
     return env
 end
 
-return configureEnv
+return {{
+    expectedPackId = "{pack_id}",
+    expectedModuleId = "{module_id}",
+    configureEnv = configureEnv,
+}}
 """
 
 
