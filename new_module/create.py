@@ -244,7 +244,7 @@ def render_module_entrypoint_test(repo_name, pack_id, package_id):
 
 def write_module_test_contract(local_path, repo_name, pack_id, package_id):
     write_text_file(
-        os.path.join(local_path, ".github", "workflows", "luacheck.yaml"),
+        os.path.join(local_path, ".github", "workflows", "ci.yaml"),
         MODULE_LUA_VALIDATION_WORKFLOW,
     )
     write_text_file(os.path.join(local_path, "tests", "all.lua"), MODULE_TEST_ALL_LUA)
@@ -255,7 +255,7 @@ def write_module_test_contract(local_path, repo_name, pack_id, package_id):
 
 
 def validate_module_test_contract(local_path):
-    workflow_path = os.path.join(local_path, ".github", "workflows", "luacheck.yaml")
+    workflow_path = os.path.join(local_path, ".github", "workflows", "ci.yaml")
     all_path = os.path.join(local_path, "tests", "all.lua")
     entrypoint_path = os.path.join(local_path, "tests", "TestEntrypoint.lua")
 
@@ -276,15 +276,16 @@ def validate_module_test_contract(local_path):
     entrypoint_content = read_file(entrypoint_path)
 
     workflow_markers = [
-        "path: Submodules/${{ github.event.repository.name }}",
-        "repository: h2-modpack/ModpackTools",
-        "path: ModpackTools",
-        "repository: h2-modpack/adamant-ModpackLib",
-        "path: adamant-ModpackLib",
+        "name: CI",
+        "uses: actions/checkout@v4",
         "luarocks install luacheck",
+        "if [ -f tests/all.lua ]; then",
         "luarocks install luaunit",
-        "working-directory: Submodules/${{ github.event.repository.name }}",
+        "luacheck src/",
+        "find src -type f -name '*.lua' -print0",
+        "if [ -d tests ]; then",
         "find tests -type f -name '*.lua' -print0",
+        "if: ${{ hashFiles('tests/all.lua') != '' }}",
         "lua tests/all.lua",
     ]
     all_markers = [
@@ -468,7 +469,7 @@ Install using r2modman. In game, open the {pack_title} menu and configure this m
 
 
 MODULE_LUA_VALIDATION_WORKFLOW = """\
-name: Lua Validation
+name: CI
 
 on:
   push:
@@ -480,22 +481,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout module
+      - name: Checkout files
         uses: actions/checkout@v4
-        with:
-          path: Submodules/${{ github.event.repository.name }}
-
-      - name: Checkout ModpackTools
-        uses: actions/checkout@v4
-        with:
-          repository: h2-modpack/ModpackTools
-          path: ModpackTools
-
-      - name: Checkout Lib
-        uses: actions/checkout@v4
-        with:
-          repository: h2-modpack/adamant-ModpackLib
-          path: adamant-ModpackLib
 
       - name: Setup Lua
         uses: leafo/gh-actions-lua@v10
@@ -508,20 +495,22 @@ jobs:
       - name: Install validation tools
         run: |
           luarocks install luacheck
-          luarocks install luaunit
+          if [ -f tests/all.lua ]; then
+            luarocks install luaunit
+          fi
 
       - name: Run Luacheck
-        working-directory: Submodules/${{ github.event.repository.name }}
         run: luacheck src/
 
       - name: Parse Lua sources
-        working-directory: Submodules/${{ github.event.repository.name }}
         run: |
           find src -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac -p
-          find tests -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac -p
+          if [ -d tests ]; then
+            find tests -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac -p
+          fi
 
       - name: Run tests
-        working-directory: Submodules/${{ github.event.repository.name }}
+        if: ${{ hashFiles('tests/all.lua') != '' }}
         run: lua tests/all.lua
 """
 

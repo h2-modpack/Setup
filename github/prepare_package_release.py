@@ -21,6 +21,13 @@ VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 CONVENTIONAL_PATTERN = re.compile(r"^([A-Za-z]+)(?:\(([^)]+)\))?(!)?: (.+)$")
 BREAKING_PATTERN = re.compile(r"BREAKING[ -]CHANGE:\s*(.+)", re.IGNORECASE | re.DOTALL)
 VERSION_LINE_PATTERN = re.compile(r'^(versionNumber\s*=\s*)".*"$', re.MULTILINE)
+DEPENDENCY_STRING_PATTERN = re.compile(
+    r'(?P<quote>["\'])(?P<package>[A-Za-z0-9_.-]+)-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)(?P=quote)'
+)
+DEPENDENCY_TABLE_PATTERN = re.compile(
+    r'^(?P<prefix>\s*(?P<package>[A-Za-z0-9_.-]+)\s*=\s*)(?P<quote>["\'])(?P<version>[0-9]+\.[0-9]+\.[0-9]+)(?P=quote)',
+    re.MULTILINE,
+)
 
 SECTION_TITLES = {
     "feat": "Added",
@@ -59,6 +66,12 @@ class ChangelogEntry:
     text: str
 
 
+@dataclass(frozen=True)
+class DependencyPin:
+    package: str
+    version: str
+
+
 def run_git(repo: Path, args: list[str]) -> str:
     result = subprocess.run(
         ["git", *args],
@@ -76,6 +89,23 @@ def validate_tag(tag: str) -> None:
             "Invalid package version number",
             "Version numbers must follow the Major.Minor.Patch format (e.g. 1.45.320).",
         )
+
+
+def parse_dependency_pin(raw: str) -> DependencyPin:
+    package, separator, version = (raw or "").partition("=")
+    package = package.strip()
+    version = version.strip()
+    if separator != "=" or not package or not version:
+        raise ReleasePrepError(
+            "Invalid dependency pin",
+            "Dependency pins must use PACKAGE=Major.Minor.Patch.",
+        )
+    if not VERSION_PATTERN.match(version):
+        raise ReleasePrepError(
+            "Invalid dependency pin version",
+            f"{package} dependency version must follow Major.Minor.Patch.",
+        )
+    return DependencyPin(package=package, version=version)
 
 
 def find_previous_tag(repo: Path, release_tag: str) -> str | None:
@@ -183,12 +213,46 @@ def update_thunderstore_config(content: str, tag: str) -> str:
     return updated
 
 
+def update_dependency_pins(content: str, pins: list[DependencyPin]) -> str:
+    updated = content
+    for pin in pins:
+        matches = [
+            ("string", match)
+            for match in DEPENDENCY_STRING_PATTERN.finditer(updated)
+            if match.group("package") == pin.package
+        ]
+        matches.extend(
+            ("table", match)
+            for match in DEPENDENCY_TABLE_PATTERN.finditer(updated)
+            if match.group("package") == pin.package
+        )
+        if not matches:
+            raise ReleasePrepError(
+                "Missing dependency pin",
+                f"thunderstore.toml does not contain dependency '{pin.package}'.",
+            )
+        if len(matches) > 1:
+            raise ReleasePrepError(
+                "Duplicate dependency pin",
+                f"thunderstore.toml contains dependency '{pin.package}' more than once.",
+            )
+
+        kind, match = matches[0]
+        if kind == "string":
+            replacement = f'{match.group("quote")}{pin.package}-{pin.version}{match.group("quote")}'
+        else:
+            replacement = f'{match.group("prefix")}{match.group("quote")}{pin.version}{match.group("quote")}'
+        updated = updated[:match.start()] + replacement + updated[match.end():]
+    return updated
+
+
 def prepare_release(
     repo: Path,
     tag: str,
     changelog_path: Path,
     thunderstore_path: Path,
     release_notes_path: Path | None,
+    dependency_pins: list[DependencyPin],
     allow_empty: bool,
     release_date: date,
 ) -> None:
@@ -206,11 +270,14 @@ def prepare_release(
         release_notes_path.write_text(section, encoding="utf-8", newline="\n")
 
     thunderstore = thunderstore_path.read_text(encoding="utf-8")
-    thunderstore_path.write_text(update_thunderstore_config(thunderstore, tag), encoding="utf-8", newline="\n")
+    thunderstore = update_thunderstore_config(thunderstore, tag)
+    thunderstore = update_dependency_pins(thunderstore, dependency_pins)
+    thunderstore_path.write_text(thunderstore, encoding="utf-8", newline="\n")
 
     print(f"Prepared release {tag}")
     print(f"Previous tag: {previous_tag or '(none)'}")
     print(f"Changelog entries: {len(entries)}")
+    print(f"Dependency pins: {len(dependency_pins)}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -224,6 +291,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional path, relative to repo root, where the generated changelog section is written.",
     )
+    parser.add_argument(
+        "--pin-dependency",
+        action="append",
+        default=[],
+        metavar="PACKAGE=VERSION",
+        help="Update a matching Thunderstore dependency pin to the supplied version.",
+    )
     parser.add_argument("--allow-empty", action="store_true", help="Allow releases with no visible changelog entries.")
     parser.add_argument("--date", default=None, help="Release date override in YYYY-MM-DD form, for tests/backfills.")
     return parser
@@ -236,12 +310,14 @@ def main(argv: list[str] | None = None) -> int:
     release_date = date.fromisoformat(args.date) if args.date else date.today()
 
     try:
+        dependency_pins = [parse_dependency_pin(raw) for raw in args.pin_dependency]
         prepare_release(
             repo=repo,
             tag=args.tag,
             changelog_path=repo / args.changelog,
             thunderstore_path=repo / args.thunderstore_config,
             release_notes_path=(repo / args.release_notes_output) if args.release_notes_output else None,
+            dependency_pins=dependency_pins,
             allow_empty=args.allow_empty,
             release_date=release_date,
         )

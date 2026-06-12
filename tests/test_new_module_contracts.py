@@ -199,14 +199,13 @@ def test_create_writes_standalone_module_test_contract() -> None:
         )
         validate_module_test_contract(str(root))
 
-        workflow = (root / ".github" / "workflows" / "luacheck.yaml").read_text(encoding="utf-8")
+        workflow = (root / ".github" / "workflows" / "ci.yaml").read_text(encoding="utf-8")
         all_lua = (root / "tests" / "all.lua").read_text(encoding="utf-8")
         entrypoint_lua = (root / "tests" / "TestEntrypoint.lua").read_text(encoding="utf-8")
 
-        assert "path: Submodules/${{ github.event.repository.name }}" in workflow
-        assert "repository: h2-modpack/ModpackTools" in workflow
-        assert "repository: h2-modpack/adamant-ModpackLib" in workflow
-        assert "working-directory: Submodules/${{ github.event.repository.name }}" in workflow
+        assert "name: CI" in workflow
+        assert "uses: actions/checkout@v4" in workflow
+        assert "luacheck src/" in workflow
         assert "find tests -type f -name '*.lua' -print0" in workflow
         assert "lua tests/all.lua" in workflow
         assert 'require("tests/TestEntrypoint")' in all_lua

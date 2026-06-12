@@ -118,6 +118,76 @@ def test_update_thunderstore_config_replaces_version() -> None:
     assert_equal(updated, '[package]\nname = "Package"\nversionNumber = "1.2.0"\n', "updated toml")
 
 
+def test_update_dependency_pins_replaces_matching_table_dependency() -> None:
+    updated = prep.update_dependency_pins(
+        '\n'.join([
+            '[package]',
+            '[package.dependencies]',
+            'adamant-ModpackLib = "3.0.0"',
+            'Other-Team-Package = "1.2.3"',
+            '',
+        ]),
+        [prep.DependencyPin("adamant-ModpackLib", "3.1.0")],
+    )
+    expected = '\n'.join([
+        '[package]',
+        '[package.dependencies]',
+        'adamant-ModpackLib = "3.1.0"',
+        'Other-Team-Package = "1.2.3"',
+        '',
+    ])
+    assert_equal(updated, expected, "dependency pin")
+
+
+def test_update_dependency_pins_replaces_matching_string_dependency() -> None:
+    updated = prep.update_dependency_pins(
+        'dependencies = ["h2-modpack-adamant-ModpackLib-3.0.0", "Other-Team-Package-1.2.3"]\n',
+        [prep.DependencyPin("h2-modpack-adamant-ModpackLib", "3.1.0")],
+    )
+    assert_equal(
+        updated,
+        'dependencies = ["h2-modpack-adamant-ModpackLib-3.1.0", "Other-Team-Package-1.2.3"]\n',
+        "string dependency pin",
+    )
+
+
+def test_update_dependency_pins_rejects_missing_dependency() -> None:
+    assert_raises(
+        "Missing dependency pin",
+        lambda: prep.update_dependency_pins(
+            'dependencies = ["Other-Team-Package-1.2.3"]\n',
+            [prep.DependencyPin("h2-modpack-adamant-ModpackLib", "3.1.0")],
+        ),
+    )
+
+
+def test_update_dependency_pins_rejects_duplicate_dependency() -> None:
+    assert_raises(
+        "Duplicate dependency pin",
+        lambda: prep.update_dependency_pins(
+            '\n'.join([
+                '[package.dependencies]',
+                'adamant-ModpackLib = "3.0.0"',
+                'adamant-ModpackLib = "3.0.1"',
+                '',
+            ]),
+            [prep.DependencyPin("adamant-ModpackLib", "3.1.0")],
+        ),
+    )
+
+
+def test_update_dependency_pins_leaves_unmanaged_dependencies() -> None:
+    updated = prep.update_dependency_pins(
+        '[package.dependencies]\nManaged-Team-Package = "1.0.0"\nUnmanaged-Team-Package = "9.9.9"\n',
+        [prep.DependencyPin("Managed-Team-Package", "1.1.0")],
+    )
+    assert_equal(
+        updated,
+        '[package.dependencies]\nManaged-Team-Package = "1.1.0"\nUnmanaged-Team-Package = "9.9.9"\n',
+        "unmanaged dependency",
+    )
+
+
 def test_prepare_release_uses_commits_since_previous_tag() -> None:
     repo = init_repo()
     write(repo, "CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n## [1.0.0] - 2026-01-01\n")
@@ -137,6 +207,7 @@ def test_prepare_release_uses_commits_since_previous_tag() -> None:
         changelog_path=repo / "CHANGELOG.md",
         thunderstore_path=repo / "thunderstore.toml",
         release_notes_path=repo / ".release-notes.md",
+        dependency_pins=[],
         allow_empty=False,
         release_date=date(2026, 6, 9),
     )
@@ -168,6 +239,11 @@ def main() -> int:
         test_update_changelog_inserts_after_unreleased,
         test_update_changelog_rejects_duplicate_tag,
         test_update_thunderstore_config_replaces_version,
+        test_update_dependency_pins_replaces_matching_table_dependency,
+        test_update_dependency_pins_replaces_matching_string_dependency,
+        test_update_dependency_pins_rejects_missing_dependency,
+        test_update_dependency_pins_rejects_duplicate_dependency,
+        test_update_dependency_pins_leaves_unmanaged_dependencies,
         test_prepare_release_uses_commits_since_previous_tag,
     ]
     for test in tests:

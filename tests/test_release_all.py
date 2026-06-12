@@ -26,13 +26,28 @@ def make_config() -> release_all.ReleaseConfig:
     return release_all.ReleaseConfig(
         org="h2pack-rundirector",
         team="adamantRunDirector",
-        core_repo="adamantRunDirector-RunDirector_Modpack",
+        coordinator_repo="adamantRunDirector-RunDirector_Modpack",
         root=Path("unused"),
     )
 
 
-def build_plan(tag: str, targets: str | None) -> release_all.ReleasePlan:
-    return release_all.build_release_plan(make_config(), tag, targets, MODULE_REPOS)
+def make_config_with_dependency() -> release_all.ReleaseConfig:
+    return release_all.ReleaseConfig(
+        org="h2pack-rundirector",
+        team="adamantRunDirector",
+        coordinator_repo="adamantRunDirector-RunDirector_Modpack",
+        dependency_org="h2-modpack",
+        dependency_repo="adamant-ModpackLib",
+        root=Path("unused"),
+    )
+
+
+def build_plan(
+    tag: str,
+    targets: str | None,
+    config: release_all.ReleaseConfig | None = None,
+) -> release_all.ReleasePlan:
+    return release_all.build_release_plan(config or make_config(), tag, targets, MODULE_REPOS)
 
 
 def assert_equal(actual, expected, label: str) -> None:
@@ -54,16 +69,24 @@ def assert_raises(title: str, func) -> release_all.ReleaseError:
     raise AssertionError(f"expected ReleaseError titled {title!r}")
 
 
-def test_mass_release_selects_all_modules_and_core() -> None:
+def test_mass_release_selects_all_modules_and_coordinator() -> None:
     plan = build_plan("1.2.0", "")
+    assert_equal(plan.dependency_selected, False, "mass dependency")
     assert_equal(plan.module_repos, MODULE_REPOS, "mass modules")
-    assert_true(plan.core_selected, "mass core selected")
+    assert_true(plan.coordinator_selected, "mass coordinator selected")
 
 
-def test_targeted_release_accepts_module_and_core_aliases() -> None:
+def test_mass_release_selects_dependency_when_configured() -> None:
+    plan = build_plan("1.2.0", "", make_config_with_dependency())
+    assert_equal(plan.dependency_selected, True, "mass dependency")
+    assert_equal(plan.module_repos, MODULE_REPOS, "mass modules")
+    assert_true(plan.coordinator_selected, "mass coordinator selected")
+
+
+def test_targeted_release_accepts_module_and_coordinator_aliases() -> None:
     plan = build_plan(
         "1.2.1",
-        "BiomeControl, adamantRunDirector-GodPool, BoonBans, Core, Modpack, RunDirector_Modpack",
+        "BiomeControl, adamantRunDirector-GodPool, BoonBans, Coordinator, Modpack, RunDirector_Modpack",
     )
     assert_equal(
         plan.module_repos,
@@ -74,7 +97,14 @@ def test_targeted_release_accepts_module_and_core_aliases() -> None:
         ],
         "targeted modules",
     )
-    assert_true(plan.core_selected, "targeted core selected")
+    assert_true(plan.coordinator_selected, "targeted coordinator selected")
+
+
+def test_targeted_release_accepts_dependency_aliases() -> None:
+    plan = build_plan("1.2.1", "Lib, BiomeControl", make_config_with_dependency())
+    assert_equal(plan.dependency_selected, True, "targeted dependency")
+    assert_equal(plan.module_repos, ["adamantRunDirector-BiomeControl"], "targeted modules")
+    assert_equal(plan.coordinator_selected, False, "targeted coordinator")
 
 
 def test_targeted_release_deduplicates_modules() -> None:
@@ -141,6 +171,135 @@ def test_parse_repo_fields_groups_fields_by_repo() -> None:
     }, "repo fields")
 
 
+def test_parse_workflow_fields_accepts_key_value_pairs() -> None:
+    fields = release_all.parse_workflow_fields(
+        [
+            "lib-version=3.0.0",
+            " dependency-pins=adamantRunDirector-GodPool=3.0.0 ",
+        ]
+    )
+    assert_equal(fields, [
+        "lib-version=3.0.0",
+        "dependency-pins=adamantRunDirector-GodPool=3.0.0",
+    ], "workflow fields")
+
+
+def test_parse_workflow_fields_rejects_missing_value_separator() -> None:
+    assert_raises("Invalid workflow field", lambda: release_all.parse_workflow_fields(["lib-version"]))
+
+
+def test_build_coordinator_dependency_pin_field_uses_selected_module_repos() -> None:
+    field = release_all.build_coordinator_dependency_pin_field(
+        [
+            "adamantRunDirector-BiomeControl",
+            "adamantRunDirector-GodPool",
+        ],
+        "3.0.0",
+    )
+    assert_equal(
+        field,
+        "dependency-pins=adamantRunDirector-BiomeControl=3.0.0,adamantRunDirector-GodPool=3.0.0",
+        "coordinator dependency pins",
+    )
+
+
+def test_merge_workflow_fields_combines_shared_and_repo_specific_fields() -> None:
+    fields = release_all.merge_workflow_fields(
+        "adamantRunDirector-BoonBans",
+        ["lib-version=3.0.0"],
+        {"adamantRunDirector-BoonBans": ["include-private-padding=true"]},
+    )
+    assert_equal(fields, [
+        "lib-version=3.0.0",
+        "include-private-padding=true",
+    ], "merged workflow fields")
+
+
+def test_has_workflow_field_matches_field_name() -> None:
+    assert_true(
+        release_all.has_workflow_field(["lib-version=3.0.0"], "lib-version"),
+        "has lib-version field",
+    )
+    assert_equal(
+        release_all.has_workflow_field(["dependency-pins=Package=3.0.0"], "lib-version"),
+        False,
+        "missing lib-version field",
+    )
+
+
+def test_enforce_dependency_lib_version_adds_missing_field() -> None:
+    fields: list[str] = []
+    release_all.enforce_dependency_lib_version(fields, "3.0.0", "Module")
+    assert_equal(fields, ["lib-version=3.0.0"], "added lib-version")
+
+
+def test_enforce_dependency_lib_version_accepts_matching_field() -> None:
+    fields = ["lib-version=3.0.0"]
+    release_all.enforce_dependency_lib_version(fields, "3.0.0", "Module")
+    assert_equal(fields, ["lib-version=3.0.0"], "matching lib-version")
+
+
+def test_enforce_dependency_lib_version_rejects_conflicting_field() -> None:
+    assert_raises(
+        "Conflicting Lib dependency version",
+        lambda: release_all.enforce_dependency_lib_version(["lib-version=2.9.0"], "3.0.0", "Module"),
+    )
+
+
+def test_dependency_release_config_uses_dependency_org() -> None:
+    config = release_all.dependency_release_config(make_config_with_dependency())
+    assert_equal(config.org, "h2-modpack", "dependency org")
+
+
+def test_dispatch_plan_releases_dependency_before_modules_and_coordinator() -> None:
+    config = make_config_with_dependency()
+    plan = build_plan("1.2.0", "", config)
+    calls: list[tuple[str, str, tuple[str, ...]]] = []
+    old_release_exists = release_all.release_exists
+    old_dispatch_repo = release_all.dispatch_repo
+    old_watch_repo = release_all.watch_repo
+
+    def fake_release_exists(_config, _repo, _tag):
+        return False
+
+    def fake_dispatch_repo(_config, repo, _tag, _child_dry_run, _repo_fields, shared_fields):
+        calls.append((_config.org, repo, tuple(shared_fields or [])))
+        return len(calls)
+
+    def fake_watch_repo(_config, _repo, _run_id):
+        return None
+
+    try:
+        release_all.release_exists = fake_release_exists
+        release_all.dispatch_repo = fake_dispatch_repo
+        release_all.watch_repo = fake_watch_repo
+
+        module_fields = []
+        coordinator_fields = []
+        if plan.dependency_selected:
+            module_fields.append("lib-version=1.2.0")
+            coordinator_fields.append("lib-version=1.2.0")
+        release_all.dispatch_release_plan(
+            config,
+            plan,
+            "1.2.0",
+            True,
+            module_fields=module_fields,
+            coordinator_fields=coordinator_fields,
+        )
+        assert_equal(calls[0], ("h2-modpack", "adamant-ModpackLib", ()), "dependency dispatch")
+        assert_equal(calls[1], ("h2pack-rundirector", MODULE_REPOS[0], ("lib-version=1.2.0",)), "first module dispatch")
+        assert_equal(calls[-1], (
+            "h2pack-rundirector",
+            "adamantRunDirector-RunDirector_Modpack",
+            ("lib-version=1.2.0",),
+        ), "coordinator dispatch")
+    finally:
+        release_all.release_exists = old_release_exists
+        release_all.dispatch_repo = old_dispatch_repo
+        release_all.watch_repo = old_watch_repo
+
+
 def test_release_phase_waits_for_each_repo_before_dispatching_next() -> None:
     config = make_config()
     calls: list[tuple[str, str]] = []
@@ -152,7 +311,7 @@ def test_release_phase_waits_for_each_repo_before_dispatching_next() -> None:
         calls.append(("exists", repo))
         return False
 
-    def fake_dispatch_repo(_config, repo, _tag, _child_dry_run, _repo_fields):
+    def fake_dispatch_repo(_config, repo, _tag, _child_dry_run, _repo_fields, _shared_fields):
         calls.append(("dispatch", repo))
         return 100 + len(calls)
 
@@ -203,7 +362,7 @@ def test_release_phase_skips_existing_releases() -> None:
         calls.append(("exists", repo))
         return repo == "adamantRunDirector-BoonBans"
 
-    def fake_dispatch_repo(_config, repo, _tag, _child_dry_run, _repo_fields):
+    def fake_dispatch_repo(_config, repo, _tag, _child_dry_run, _repo_fields, _shared_fields):
         calls.append(("dispatch", repo))
         return 200 + len(calls)
 
@@ -240,8 +399,10 @@ def test_release_phase_skips_existing_releases() -> None:
 
 def main() -> int:
     tests = [
-        test_mass_release_selects_all_modules_and_core,
-        test_targeted_release_accepts_module_and_core_aliases,
+        test_mass_release_selects_all_modules_and_coordinator,
+        test_mass_release_selects_dependency_when_configured,
+        test_targeted_release_accepts_module_and_coordinator_aliases,
+        test_targeted_release_accepts_dependency_aliases,
         test_targeted_release_deduplicates_modules,
         test_old_prefixed_module_target_is_rejected,
         test_unknown_target_reports_current_repo_name,
@@ -250,6 +411,16 @@ def main() -> int:
         test_empty_target_list_is_rejected,
         test_dispatch_fields_include_generic_repo_fields,
         test_parse_repo_fields_groups_fields_by_repo,
+        test_parse_workflow_fields_accepts_key_value_pairs,
+        test_parse_workflow_fields_rejects_missing_value_separator,
+        test_build_coordinator_dependency_pin_field_uses_selected_module_repos,
+        test_merge_workflow_fields_combines_shared_and_repo_specific_fields,
+        test_has_workflow_field_matches_field_name,
+        test_enforce_dependency_lib_version_adds_missing_field,
+        test_enforce_dependency_lib_version_accepts_matching_field,
+        test_enforce_dependency_lib_version_rejects_conflicting_field,
+        test_dependency_release_config_uses_dependency_org,
+        test_dispatch_plan_releases_dependency_before_modules_and_coordinator,
         test_release_phase_waits_for_each_repo_before_dispatching_next,
         test_release_phase_skips_existing_releases,
     ]

@@ -14,7 +14,7 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,7 +36,9 @@ class ReleaseError(Exception):
 class ReleaseConfig:
     org: str
     team: str
-    core_repo: str
+    coordinator_repo: str
+    dependency_repo: str | None = None
+    dependency_org: str | None = None
     root: Path = ROOT_DIR
     workflow: str = "release.yaml"
     branch: str = "main"
@@ -50,11 +52,12 @@ class ReleaseConfig:
 
 @dataclass(frozen=True)
 class ReleasePlan:
+    dependency_selected: bool
     module_repos: list[str]
-    core_selected: bool
+    coordinator_selected: bool
 
     def total(self) -> int:
-        return len(self.module_repos) + (1 if self.core_selected else 0)
+        return len(self.module_repos) + (1 if self.coordinator_selected else 0) + (1 if self.dependency_selected else 0)
 
 
 def parse_bool(value: str | bool | None) -> bool:
@@ -107,16 +110,32 @@ def _casefold_map(values: list[str]) -> dict[str, str]:
     return {value.casefold(): value for value in values}
 
 
-def core_aliases(config: ReleaseConfig) -> set[str]:
+def coordinator_aliases(config: ReleaseConfig) -> set[str]:
     aliases = {
-        "Core",
+        "Coordinator",
         "Modpack",
-        config.core_repo,
+        config.coordinator_repo,
     }
 
     team_prefix = f"{config.team}-"
-    if config.core_repo.startswith(team_prefix):
-        aliases.add(config.core_repo[len(team_prefix):])
+    if config.coordinator_repo.startswith(team_prefix):
+        aliases.add(config.coordinator_repo[len(team_prefix):])
+
+    return aliases
+
+
+def dependency_aliases(config: ReleaseConfig) -> set[str]:
+    if not config.dependency_repo:
+        return set()
+
+    aliases = {
+        "Dependency",
+        "Lib",
+        "ModpackLib",
+        config.dependency_repo,
+    }
+    if config.dependency_repo.startswith("adamant-"):
+        aliases.add(config.dependency_repo[len("adamant-"):])
 
     return aliases
 
@@ -139,8 +158,11 @@ def normalize_release_target(
     if not target:
         return None
 
-    if target.casefold() in {alias.casefold() for alias in core_aliases(config)}:
-        return ("core", config.core_repo)
+    if target.casefold() in {alias.casefold() for alias in coordinator_aliases(config)}:
+        return ("coordinator", config.coordinator_repo)
+
+    if target.casefold() in {alias.casefold() for alias in dependency_aliases(config)}:
+        return ("dependency", config.dependency_repo or "")
 
     alias_to_repo: dict[str, str] = {}
     for repo in available_module_repos:
@@ -190,10 +212,15 @@ def build_release_plan(
     )
     module_repos: list[str] = []
     seen_modules: set[str] = set()
-    core_selected = False
+    coordinator_selected = False
+    dependency_selected = False
 
     if not targeted:
-        return ReleasePlan(module_repos=available_modules, core_selected=True)
+        return ReleasePlan(
+            dependency_selected=config.dependency_repo is not None,
+            module_repos=available_modules,
+            coordinator_selected=True,
+        )
 
     for requested in requested_filter.split(","):
         normalized = normalize_release_target(requested, config, available_modules)
@@ -201,27 +228,35 @@ def build_release_plan(
             continue
 
         kind, repo = normalized
-        if kind == "core":
-            core_selected = True
+        if kind == "dependency":
+            dependency_selected = True
+        elif kind == "coordinator":
+            coordinator_selected = True
         elif repo not in seen_modules:
             seen_modules.add(repo)
             module_repos.append(repo)
 
-    plan = ReleasePlan(module_repos=module_repos, core_selected=core_selected)
+    plan = ReleasePlan(
+        dependency_selected=dependency_selected,
+        module_repos=module_repos,
+        coordinator_selected=coordinator_selected,
+    )
     if plan.total() == 0:
         raise ReleaseError(
             "No release targets",
-            "No module or core release targets were selected.",
+            "No dependency, module, or coordinator release targets were selected.",
         )
     return plan
 
 
 def print_plan(plan: ReleasePlan, config: ReleaseConfig) -> None:
     print("Release order:")
+    if plan.dependency_selected and config.dependency_repo:
+        print(f"  - {config.dependency_repo}")
     for repo in plan.module_repos:
         print(f"  - {repo}")
-    if plan.core_selected:
-        print(f"  - {config.core_repo}")
+    if plan.coordinator_selected:
+        print(f"  - {config.coordinator_repo}")
 
 
 def parse_repo_fields(raw_fields: list[str] | None) -> dict[str, list[str]]:
@@ -240,6 +275,71 @@ def parse_repo_fields(raw_fields: list[str] | None) -> dict[str, list[str]]:
 
         repo_fields.setdefault(repo.strip(), []).append(field.strip())
     return repo_fields
+
+
+def parse_workflow_fields(raw_fields: list[str] | None) -> list[str]:
+    fields: list[str] = []
+    for raw in raw_fields or []:
+        field = (raw or "").strip()
+        if not field:
+            continue
+        if "=" not in field:
+            raise ReleaseError(
+                "Invalid workflow field",
+                "Workflow fields must use the key=value format.",
+            )
+        fields.append(field)
+    return fields
+
+
+def build_coordinator_dependency_pin_field(module_repos: list[str], tag: str) -> str | None:
+    if not module_repos:
+        return None
+    pins = ",".join(f"{repo}={tag}" for repo in module_repos)
+    return f"dependency-pins={pins}"
+
+
+def merge_workflow_fields(
+    repo: str,
+    shared_fields: list[str] | None,
+    repo_fields: dict[str, list[str]] | None,
+) -> list[str]:
+    fields = list(shared_fields or [])
+    fields.extend((repo_fields or {}).get(repo, []))
+    return fields
+
+
+def has_workflow_field(fields: list[str], key: str) -> bool:
+    return workflow_field_value(fields, key) is not None
+
+
+def workflow_field_value(fields: list[str], key: str) -> str | None:
+    expected = key.strip()
+    for field in fields:
+        field_key, separator, value = field.partition("=")
+        if separator and field_key.strip() == expected:
+            return value.strip()
+    return None
+
+
+def enforce_dependency_lib_version(
+    fields: list[str],
+    tag: str,
+    label: str,
+) -> None:
+    current = workflow_field_value(fields, "lib-version")
+    if current is None:
+        fields.append(f"lib-version={tag}")
+        return
+    if current != tag:
+        raise ReleaseError(
+            "Conflicting Lib dependency version",
+            f"{label} lib-version is {current}, but selected dependency release uses tag {tag}.",
+        )
+
+
+def dependency_release_config(config: ReleaseConfig) -> ReleaseConfig:
+    return replace(config, org=config.dependency_org or config.org)
 
 
 def run_gh(args: list[str], capture_json: bool = False) -> object | None:
@@ -362,6 +462,7 @@ def dispatch_repo(
     tag: str,
     child_dry_run: bool,
     repo_fields: dict[str, list[str]] | None = None,
+    shared_fields: list[str] | None = None,
 ) -> int:
     print(f"--- Triggering: {config.org}/{repo} ---")
     baseline_ids = {
@@ -381,7 +482,7 @@ def dispatch_repo(
     for field in build_dispatch_fields(
         tag,
         child_dry_run,
-        (repo_fields or {}).get(repo),
+        merge_workflow_fields(repo, shared_fields, repo_fields),
     ):
         command.extend(["--field", field])
 
@@ -424,6 +525,7 @@ def release_phase(
     tag: str,
     child_dry_run: bool,
     repo_fields: dict[str, list[str]] | None = None,
+    shared_fields: list[str] | None = None,
 ) -> int:
     if not repos:
         return 0
@@ -448,6 +550,7 @@ def release_phase(
                 tag,
                 child_dry_run,
                 repo_fields,
+                shared_fields,
             )
             watch_repo(config, repo, run_id)
             succeeded += 1
@@ -467,23 +570,40 @@ def dispatch_release_plan(
     tag: str,
     child_dry_run: bool,
     repo_fields: dict[str, list[str]] | None = None,
+    module_fields: list[str] | None = None,
+    coordinator_fields: list[str] | None = None,
+    dependency_fields: list[str] | None = None,
 ) -> None:
-    succeeded = release_phase(
+    succeeded = 0
+    if plan.dependency_selected and config.dependency_repo:
+        succeeded += release_phase(
+            dependency_release_config(config),
+            "Dependency release",
+            [config.dependency_repo],
+            tag,
+            child_dry_run,
+            repo_fields,
+            dependency_fields,
+        )
+
+    succeeded += release_phase(
         config,
         "Module releases",
         plan.module_repos,
         tag,
         child_dry_run,
         repo_fields,
+        module_fields,
     )
-    if plan.core_selected:
+    if plan.coordinator_selected:
         succeeded += release_phase(
             config,
-            "Core release",
-            [config.core_repo],
+            "Coordinator release",
+            [config.coordinator_repo],
             tag,
             child_dry_run,
             repo_fields,
+            coordinator_fields,
         )
 
     print("")
@@ -496,7 +616,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Coordinate pack-wide release dispatches.")
     parser.add_argument("--org", required=True, help="GitHub org that owns the pack repos.")
     parser.add_argument("--team", required=True, help="Thunderstore team / repo prefix.")
-    parser.add_argument("--core-repo", required=True, help="Coordinator/core repo name.")
+    parser.add_argument("--coordinator-repo", required=True, help="Coordinator repo name.")
+    parser.add_argument("--dependency-repo", default=None, help="Optional shared dependency repo released before modules.")
+    parser.add_argument("--dependency-org", default=None, help="GitHub org for --dependency-repo. Defaults to --org.")
     parser.add_argument("--tag", required=True, help="Release version tag.")
     parser.add_argument("--targets", nargs="?", default="", const="", help="Comma-separated release targets. Blank means all.")
     parser.add_argument("--child-dry-run", default="false", help="Pass dry-run mode to child release workflows.")
@@ -510,6 +632,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Repo-specific workflow_dispatch field in repo:key=value format. May be repeated.",
     )
+    parser.add_argument(
+        "--module-field",
+        action="append",
+        default=[],
+        help="workflow_dispatch field sent to every selected module repo in key=value format. May be repeated.",
+    )
+    parser.add_argument(
+        "--coordinator-field",
+        action="append",
+        default=[],
+        help="workflow_dispatch field sent to the coordinator repo in key=value format. May be repeated.",
+    )
+    parser.add_argument(
+        "--pin-coordinator-module-deps",
+        action="store_true",
+        help="Pin selected coordinator module dependencies to the release tag using the dependency-pins workflow field.",
+    )
     return parser
 
 
@@ -520,7 +659,9 @@ def main(argv: list[str] | None = None) -> int:
     config = ReleaseConfig(
         org=args.org,
         team=args.team,
-        core_repo=args.core_repo,
+        coordinator_repo=args.coordinator_repo,
+        dependency_repo=args.dependency_repo,
+        dependency_org=args.dependency_org,
         root=Path(args.root).resolve(),
         workflow=args.workflow,
         branch=args.branch,
@@ -529,7 +670,16 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         repo_fields = parse_repo_fields(args.repo_field)
+        module_fields = parse_workflow_fields(args.module_field)
+        coordinator_fields = parse_workflow_fields(args.coordinator_field)
         plan = build_release_plan(config, args.tag, args.targets)
+        if plan.dependency_selected:
+            enforce_dependency_lib_version(module_fields, args.tag, "Module")
+            enforce_dependency_lib_version(coordinator_fields, args.tag, "Coordinator")
+        if args.pin_coordinator_module_deps:
+            dependency_pin_field = build_coordinator_dependency_pin_field(plan.module_repos, args.tag)
+            if dependency_pin_field is not None:
+                coordinator_fields.append(dependency_pin_field)
         print_plan(plan, config)
         if not args.plan_only:
             dispatch_release_plan(
@@ -538,6 +688,9 @@ def main(argv: list[str] | None = None) -> int:
                 args.tag,
                 child_dry_run,
                 repo_fields,
+                module_fields,
+                coordinator_fields,
+                None,
             )
         return 0
     except ReleaseError as exc:
