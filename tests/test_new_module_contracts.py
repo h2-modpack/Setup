@@ -201,18 +201,17 @@ def test_create_writes_standalone_module_test_contract() -> None:
 
         workflow = (root / ".github" / "workflows" / "ci.yaml").read_text(encoding="utf-8")
         all_lua = (root / "tests" / "all.lua").read_text(encoding="utf-8")
-        entrypoint_lua = (root / "tests" / "TestEntrypoint.lua").read_text(encoding="utf-8")
+        smoke_env_lua = (root / "tests" / "smoke_env.lua").read_text(encoding="utf-8")
 
         assert "name: CI" in workflow
         assert "uses: actions/checkout@v4" in workflow
         assert "luacheck src/" in workflow
         assert "find tests -type f -name '*.lua' -print0" in workflow
         assert "lua tests/all.lua" in workflow
-        assert 'require("tests/TestEntrypoint")' in all_lua
-        assert 'dofile("../../ModpackTools/tests/module_entrypoint_harness.lua")' in entrypoint_lua
-        assert 'pluginGuid = "adamantRunDirector-GodPool"' in entrypoint_lua
-        assert 'lu.assertEquals(boot.liveModule.getModuleId(), "GodPool")' in entrypoint_lua
-        assert 'lu.assertEquals(boot.liveModule.getPackId(), "run-director")' in entrypoint_lua
+        assert 'require("tests/TestEntrypoint")' not in all_lua
+        assert "local function configureEnv(env)" in smoke_env_lua
+        assert "return configureEnv" in smoke_env_lua
+        assert "module_entrypoint_harness.lua" not in smoke_env_lua
 
 
 def test_discover_coordinator_reads_pack_display_name() -> None:

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -51,11 +52,56 @@ def test_find_lua_runner_skips_unusable_candidates() -> None:
         test_all.lua_runner_candidates = old_lua_runner_candidates
 
 
+def test_discover_lua_tests_runs_shared_module_smoke_from_shell() -> None:
+    old_root_dir = test_all.ROOT_DIR
+    old_tools_dir = test_all.TOOLS_DIR
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        tools_dir = root / "ModpackTools"
+        module_dir = root / "Submodules" / "adamantRunDirector-GodPool"
+        lib_tests_dir = root / "adamant-ModpackLib" / "tests"
+        module_tests_dir = module_dir / "tests"
+
+        lib_tests_dir.mkdir(parents=True)
+        module_tests_dir.mkdir(parents=True)
+        tools_dir.mkdir(parents=True)
+        (lib_tests_dir / "all.lua").write_text("", encoding="utf-8")
+        (module_tests_dir / "all.lua").write_text("", encoding="utf-8")
+        (module_tests_dir / "smoke_env.lua").write_text("", encoding="utf-8")
+        (tools_dir / "tests").mkdir(parents=True)
+        (tools_dir / "tests" / "test_module_smoke.lua").write_text("", encoding="utf-8")
+
+        try:
+            test_all.ROOT_DIR = root
+            test_all.TOOLS_DIR = tools_dir
+            commands = test_all.discover_lua_tests("lua5.2")
+        finally:
+            test_all.ROOT_DIR = old_root_dir
+            test_all.TOOLS_DIR = old_tools_dir
+
+    assert_equal(
+        [command.name for command in commands],
+        [
+            "adamant-ModpackLib",
+            "adamantRunDirector-GodPool",
+            "ModpackTools/test_module_smoke.lua",
+        ],
+        "lua test commands",
+    )
+    assert_equal(
+        commands[-1].command,
+        ["lua5.2", "ModpackTools/tests/test_module_smoke.lua"],
+        "smoke command",
+    )
+
+
 def main() -> int:
     tests = [
         test_posix_prefers_native_lua_before_windows_exe,
         test_windows_prefers_windows_lua_exe,
         test_find_lua_runner_skips_unusable_candidates,
+        test_discover_lua_tests_runs_shared_module_smoke_from_shell,
     ]
     for test in tests:
         test()

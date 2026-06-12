@@ -233,15 +233,6 @@ def write_text_file(path, content):
         f.write(content)
 
 
-def render_module_entrypoint_test(repo_name, pack_id, package_id):
-    return (
-        MODULE_TEST_ENTRYPOINT_LUA
-        .replace("{{PLUGIN_GUID}}", repo_name)
-        .replace("{{PACK_ID}}", pack_id)
-        .replace("{{MODULE_ID}}", package_id)
-    )
-
-
 def write_module_test_contract(local_path, repo_name, pack_id, package_id):
     write_text_file(
         os.path.join(local_path, ".github", "workflows", "ci.yaml"),
@@ -249,18 +240,18 @@ def write_module_test_contract(local_path, repo_name, pack_id, package_id):
     )
     write_text_file(os.path.join(local_path, "tests", "all.lua"), MODULE_TEST_ALL_LUA)
     write_text_file(
-        os.path.join(local_path, "tests", "TestEntrypoint.lua"),
-        render_module_entrypoint_test(repo_name, pack_id, package_id),
+        os.path.join(local_path, "tests", "smoke_env.lua"),
+        MODULE_TEST_SMOKE_ENV_LUA,
     )
 
 
 def validate_module_test_contract(local_path):
     workflow_path = os.path.join(local_path, ".github", "workflows", "ci.yaml")
     all_path = os.path.join(local_path, "tests", "all.lua")
-    entrypoint_path = os.path.join(local_path, "tests", "TestEntrypoint.lua")
+    smoke_env_path = os.path.join(local_path, "tests", "smoke_env.lua")
 
     hits = []
-    for path in (workflow_path, all_path, entrypoint_path):
+    for path in (workflow_path, all_path, smoke_env_path):
         if not os.path.exists(path):
             hits.append(f"{os.path.relpath(path, local_path)}: missing generated test contract file")
 
@@ -273,7 +264,7 @@ def validate_module_test_contract(local_path):
 
     workflow_content = read_file(workflow_path)
     all_content = read_file(all_path)
-    entrypoint_content = read_file(entrypoint_path)
+    smoke_env_content = read_file(smoke_env_path)
 
     workflow_markers = [
         "name: CI",
@@ -289,17 +280,11 @@ def validate_module_test_contract(local_path):
         "lua tests/all.lua",
     ]
     all_markers = [
-        'require("tests/TestEntrypoint")',
         'require("luaunit")',
     ]
-    entrypoint_markers = [
-        'dofile("../../ModpackTools/tests/module_entrypoint_harness.lua")',
-        "harness.bootModule",
-        "pluginGuid =",
-        'moduleSrcDir = "src"',
-        "getOwnerId()",
-        "getModuleId()",
-        "getPackId()",
+    smoke_env_markers = [
+        "local function configureEnv(env)",
+        "return configureEnv",
     ]
 
     for marker in workflow_markers:
@@ -308,9 +293,9 @@ def validate_module_test_contract(local_path):
     for marker in all_markers:
         if marker not in all_content:
             hits.append(f"{os.path.relpath(all_path, local_path)}: missing test runner marker '{marker}'")
-    for marker in entrypoint_markers:
-        if marker not in entrypoint_content:
-            hits.append(f"{os.path.relpath(entrypoint_path, local_path)}: missing entrypoint marker '{marker}'")
+    for marker in smoke_env_markers:
+        if marker not in smoke_env_content:
+            hits.append(f"{os.path.relpath(smoke_env_path, local_path)}: missing smoke fixture marker '{marker}'")
 
     if hits:
         details = "\n  - ".join(hits)
@@ -518,32 +503,17 @@ jobs:
 MODULE_TEST_ALL_LUA = """\
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
-require("tests/TestEntrypoint")
-
 local lu = require("luaunit")
 os.exit(lu.LuaUnit.run())
 """
 
 
-MODULE_TEST_ENTRYPOINT_LUA = """\
-local lu = require("luaunit")
-local harness = dofile("../../ModpackTools/tests/module_entrypoint_harness.lua")
-
-TestEntrypoint = {}
-
-function TestEntrypoint:testMainLuaBootsRealModule()
-    local boot = harness.bootModule({
-        pluginGuid = "{{PLUGIN_GUID}}",
-        moduleSrcDir = "src",
-    })
-
-    lu.assertNotNil(boot.liveModule)
-    lu.assertEquals(boot.liveModule.getOwnerId(), "{{PLUGIN_GUID}}")
-    lu.assertEquals(boot.liveModule.getModuleId(), "{{MODULE_ID}}")
-    lu.assertEquals(boot.liveModule.getPackId(), "{{PACK_ID}}")
-    lu.assertEquals(#boot.callbacks.imgui, 1)
-    lu.assertEquals(#boot.callbacks.menuBar, 2)
+MODULE_TEST_SMOKE_ENV_LUA = """\
+local function configureEnv(env)
+    return env
 end
+
+return configureEnv
 """
 
 

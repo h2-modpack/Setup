@@ -22,6 +22,7 @@ local function resolveLibSrcDir(override)
         candidates[#candidates + 1] = envDir
         candidates[#candidates + 1] = envDir .. "/src"
     end
+    candidates[#candidates + 1] = "adamant-ModpackLib/src"
     candidates[#candidates + 1] = ".modpacklib/src"
     candidates[#candidates + 1] = "../../adamant-ModpackLib/src"
 
@@ -193,6 +194,7 @@ local function createBaseEnv()
     env.rom = {
         mods = {},
         game = {
+            Color = Harness.makeColorTable(),
             DeepCopyTable = deepCopy,
             SetupRunData = function()
                 callbacks.setupRunDataCount = callbacks.setupRunDataCount + 1
