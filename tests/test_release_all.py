@@ -71,14 +71,12 @@ def assert_raises(title: str, func) -> release_all.ReleaseError:
 
 def test_mass_release_selects_all_modules_and_coordinator() -> None:
     plan = build_plan("1.2.0", "")
-    assert_equal(plan.dependency_selected, False, "mass dependency")
     assert_equal(plan.module_repos, MODULE_REPOS, "mass modules")
     assert_true(plan.coordinator_selected, "mass coordinator selected")
 
 
-def test_mass_release_selects_dependency_when_configured() -> None:
+def test_mass_release_ignores_deprecated_dependency_config() -> None:
     plan = build_plan("1.2.0", "", make_config_with_dependency())
-    assert_equal(plan.dependency_selected, True, "mass dependency")
     assert_equal(plan.module_repos, MODULE_REPOS, "mass modules")
     assert_true(plan.coordinator_selected, "mass coordinator selected")
 
@@ -100,11 +98,20 @@ def test_targeted_release_accepts_module_and_coordinator_aliases() -> None:
     assert_true(plan.coordinator_selected, "targeted coordinator selected")
 
 
-def test_targeted_release_accepts_dependency_aliases() -> None:
-    plan = build_plan("1.2.1", "Lib, BiomeControl", make_config_with_dependency())
-    assert_equal(plan.dependency_selected, True, "targeted dependency")
-    assert_equal(plan.module_repos, ["adamantRunDirector-BiomeControl"], "targeted modules")
-    assert_equal(plan.coordinator_selected, False, "targeted coordinator")
+def test_targeted_release_rejects_dependency_aliases() -> None:
+    exc = assert_raises(
+        "Unsupported release target",
+        lambda: build_plan("1.2.1", "Lib", make_config_with_dependency()),
+    )
+    if "Release Lib from its own repository" not in exc.message:
+        raise AssertionError(f"unexpected dependency target message: {exc.message}")
+
+
+def test_targeted_dependency_zero_patch_reports_dependency_boundary() -> None:
+    assert_raises(
+        "Unsupported release target",
+        lambda: build_plan("3.0.0", "Lib", make_config_with_dependency()),
+    )
 
 
 def test_targeted_release_deduplicates_modules() -> None:
@@ -227,31 +234,7 @@ def test_has_workflow_field_matches_field_name() -> None:
     )
 
 
-def test_enforce_dependency_lib_version_adds_missing_field() -> None:
-    fields: list[str] = []
-    release_all.enforce_dependency_lib_version(fields, "3.0.0", "Module")
-    assert_equal(fields, ["lib-version=3.0.0"], "added lib-version")
-
-
-def test_enforce_dependency_lib_version_accepts_matching_field() -> None:
-    fields = ["lib-version=3.0.0"]
-    release_all.enforce_dependency_lib_version(fields, "3.0.0", "Module")
-    assert_equal(fields, ["lib-version=3.0.0"], "matching lib-version")
-
-
-def test_enforce_dependency_lib_version_rejects_conflicting_field() -> None:
-    assert_raises(
-        "Conflicting Lib dependency version",
-        lambda: release_all.enforce_dependency_lib_version(["lib-version=2.9.0"], "3.0.0", "Module"),
-    )
-
-
-def test_dependency_release_config_uses_dependency_org() -> None:
-    config = release_all.dependency_release_config(make_config_with_dependency())
-    assert_equal(config.org, "h2-modpack", "dependency org")
-
-
-def test_dispatch_plan_releases_dependency_before_modules_and_coordinator() -> None:
+def test_dispatch_plan_releases_modules_and_coordinator_only() -> None:
     config = make_config_with_dependency()
     plan = build_plan("1.2.0", "", config)
     calls: list[tuple[str, str, tuple[str, ...]]] = []
@@ -276,9 +259,8 @@ def test_dispatch_plan_releases_dependency_before_modules_and_coordinator() -> N
 
         module_fields = []
         coordinator_fields = []
-        if plan.dependency_selected:
-            module_fields.append("lib-version=1.2.0")
-            coordinator_fields.append("lib-version=1.2.0")
+        module_fields.append("lib-version=3.0.0")
+        coordinator_fields.append("lib-version=3.0.0")
         release_all.dispatch_release_plan(
             config,
             plan,
@@ -287,12 +269,11 @@ def test_dispatch_plan_releases_dependency_before_modules_and_coordinator() -> N
             module_fields=module_fields,
             coordinator_fields=coordinator_fields,
         )
-        assert_equal(calls[0], ("h2-modpack", "adamant-ModpackLib", ()), "dependency dispatch")
-        assert_equal(calls[1], ("h2pack-rundirector", MODULE_REPOS[0], ("lib-version=1.2.0",)), "first module dispatch")
+        assert_equal(calls[0], ("h2pack-rundirector", MODULE_REPOS[0], ("lib-version=3.0.0",)), "first module dispatch")
         assert_equal(calls[-1], (
             "h2pack-rundirector",
             "adamantRunDirector-RunDirector_Modpack",
-            ("lib-version=1.2.0",),
+            ("lib-version=3.0.0",),
         ), "coordinator dispatch")
     finally:
         release_all.release_exists = old_release_exists
@@ -400,9 +381,10 @@ def test_release_phase_skips_existing_releases() -> None:
 def main() -> int:
     tests = [
         test_mass_release_selects_all_modules_and_coordinator,
-        test_mass_release_selects_dependency_when_configured,
+        test_mass_release_ignores_deprecated_dependency_config,
         test_targeted_release_accepts_module_and_coordinator_aliases,
-        test_targeted_release_accepts_dependency_aliases,
+        test_targeted_release_rejects_dependency_aliases,
+        test_targeted_dependency_zero_patch_reports_dependency_boundary,
         test_targeted_release_deduplicates_modules,
         test_old_prefixed_module_target_is_rejected,
         test_unknown_target_reports_current_repo_name,
@@ -416,11 +398,7 @@ def main() -> int:
         test_build_coordinator_dependency_pin_field_uses_selected_module_repos,
         test_merge_workflow_fields_combines_shared_and_repo_specific_fields,
         test_has_workflow_field_matches_field_name,
-        test_enforce_dependency_lib_version_adds_missing_field,
-        test_enforce_dependency_lib_version_accepts_matching_field,
-        test_enforce_dependency_lib_version_rejects_conflicting_field,
-        test_dependency_release_config_uses_dependency_org,
-        test_dispatch_plan_releases_dependency_before_modules_and_coordinator,
+        test_dispatch_plan_releases_modules_and_coordinator_only,
         test_release_phase_waits_for_each_repo_before_dispatching_next,
         test_release_phase_skips_existing_releases,
     ]

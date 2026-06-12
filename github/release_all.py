@@ -14,7 +14,7 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -52,12 +52,11 @@ class ReleaseConfig:
 
 @dataclass(frozen=True)
 class ReleasePlan:
-    dependency_selected: bool
     module_repos: list[str]
     coordinator_selected: bool
 
     def total(self) -> int:
-        return len(self.module_repos) + (1 if self.coordinator_selected else 0) + (1 if self.dependency_selected else 0)
+        return len(self.module_repos) + (1 if self.coordinator_selected else 0)
 
 
 def parse_bool(value: str | bool | None) -> bool:
@@ -125,17 +124,16 @@ def coordinator_aliases(config: ReleaseConfig) -> set[str]:
 
 
 def dependency_aliases(config: ReleaseConfig) -> set[str]:
-    if not config.dependency_repo:
-        return set()
-
     aliases = {
         "Dependency",
         "Lib",
         "ModpackLib",
-        config.dependency_repo,
+        "adamant-ModpackLib",
     }
-    if config.dependency_repo.startswith("adamant-"):
-        aliases.add(config.dependency_repo[len("adamant-"):])
+    if config.dependency_repo:
+        aliases.add(config.dependency_repo)
+        if config.dependency_repo.startswith("adamant-"):
+            aliases.add(config.dependency_repo[len("adamant-"):])
 
     return aliases
 
@@ -162,7 +160,11 @@ def normalize_release_target(
         return ("coordinator", config.coordinator_repo)
 
     if target.casefold() in {alias.casefold() for alias in dependency_aliases(config)}:
-        return ("dependency", config.dependency_repo or "")
+        raise ReleaseError(
+            "Unsupported release target",
+            "ModpackLib is shared infra and is not released by pack release_all. "
+            "Release Lib from its own repository, then pass lib-version to pin pack dependencies.",
+        )
 
     alias_to_repo: dict[str, str] = {}
     for repo in available_module_repos:
@@ -203,7 +205,8 @@ def build_release_plan(
 ) -> ReleasePlan:
     requested_filter = (targets or "").strip()
     targeted = bool(requested_filter)
-    validate_tag(tag, targeted)
+    if not targeted:
+        validate_tag(tag, targeted)
 
     available_modules = (
         discover_module_repos(config)
@@ -213,11 +216,9 @@ def build_release_plan(
     module_repos: list[str] = []
     seen_modules: set[str] = set()
     coordinator_selected = False
-    dependency_selected = False
 
     if not targeted:
         return ReleasePlan(
-            dependency_selected=config.dependency_repo is not None,
             module_repos=available_modules,
             coordinator_selected=True,
         )
@@ -228,31 +229,27 @@ def build_release_plan(
             continue
 
         kind, repo = normalized
-        if kind == "dependency":
-            dependency_selected = True
-        elif kind == "coordinator":
+        if kind == "coordinator":
             coordinator_selected = True
         elif repo not in seen_modules:
             seen_modules.add(repo)
             module_repos.append(repo)
 
     plan = ReleasePlan(
-        dependency_selected=dependency_selected,
         module_repos=module_repos,
         coordinator_selected=coordinator_selected,
     )
     if plan.total() == 0:
         raise ReleaseError(
             "No release targets",
-            "No dependency, module, or coordinator release targets were selected.",
+            "No module or coordinator release targets were selected.",
         )
+    validate_tag(tag, targeted)
     return plan
 
 
 def print_plan(plan: ReleasePlan, config: ReleaseConfig) -> None:
     print("Release order:")
-    if plan.dependency_selected and config.dependency_repo:
-        print(f"  - {config.dependency_repo}")
     for repo in plan.module_repos:
         print(f"  - {repo}")
     if plan.coordinator_selected:
@@ -320,26 +317,6 @@ def workflow_field_value(fields: list[str], key: str) -> str | None:
         if separator and field_key.strip() == expected:
             return value.strip()
     return None
-
-
-def enforce_dependency_lib_version(
-    fields: list[str],
-    tag: str,
-    label: str,
-) -> None:
-    current = workflow_field_value(fields, "lib-version")
-    if current is None:
-        fields.append(f"lib-version={tag}")
-        return
-    if current != tag:
-        raise ReleaseError(
-            "Conflicting Lib dependency version",
-            f"{label} lib-version is {current}, but selected dependency release uses tag {tag}.",
-        )
-
-
-def dependency_release_config(config: ReleaseConfig) -> ReleaseConfig:
-    return replace(config, org=config.dependency_org or config.org)
 
 
 def run_gh(args: list[str], capture_json: bool = False) -> object | None:
@@ -572,20 +549,8 @@ def dispatch_release_plan(
     repo_fields: dict[str, list[str]] | None = None,
     module_fields: list[str] | None = None,
     coordinator_fields: list[str] | None = None,
-    dependency_fields: list[str] | None = None,
 ) -> None:
     succeeded = 0
-    if plan.dependency_selected and config.dependency_repo:
-        succeeded += release_phase(
-            dependency_release_config(config),
-            "Dependency release",
-            [config.dependency_repo],
-            tag,
-            child_dry_run,
-            repo_fields,
-            dependency_fields,
-        )
-
     succeeded += release_phase(
         config,
         "Module releases",
@@ -617,8 +582,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--org", required=True, help="GitHub org that owns the pack repos.")
     parser.add_argument("--team", required=True, help="Thunderstore team / repo prefix.")
     parser.add_argument("--coordinator-repo", required=True, help="Coordinator repo name.")
-    parser.add_argument("--dependency-repo", default=None, help="Optional shared dependency repo released before modules.")
-    parser.add_argument("--dependency-org", default=None, help="GitHub org for --dependency-repo. Defaults to --org.")
+    parser.add_argument(
+        "--dependency-repo",
+        default=None,
+        help="Deprecated compatibility option. Shared dependencies are not released by release_all.",
+    )
+    parser.add_argument(
+        "--dependency-org",
+        default=None,
+        help="Deprecated compatibility option. Shared dependencies are not released by release_all.",
+    )
     parser.add_argument("--tag", required=True, help="Release version tag.")
     parser.add_argument("--targets", nargs="?", default="", const="", help="Comma-separated release targets. Blank means all.")
     parser.add_argument("--child-dry-run", default="false", help="Pass dry-run mode to child release workflows.")
@@ -673,9 +646,6 @@ def main(argv: list[str] | None = None) -> int:
         module_fields = parse_workflow_fields(args.module_field)
         coordinator_fields = parse_workflow_fields(args.coordinator_field)
         plan = build_release_plan(config, args.tag, args.targets)
-        if plan.dependency_selected:
-            enforce_dependency_lib_version(module_fields, args.tag, "Module")
-            enforce_dependency_lib_version(coordinator_fields, args.tag, "Coordinator")
         if args.pin_coordinator_module_deps:
             dependency_pin_field = build_coordinator_dependency_pin_field(plan.module_repos, args.tag)
             if dependency_pin_field is not None:
@@ -690,7 +660,6 @@ def main(argv: list[str] | None = None) -> int:
                 repo_fields,
                 module_fields,
                 coordinator_fields,
-                None,
             )
         return 0
     except ReleaseError as exc:

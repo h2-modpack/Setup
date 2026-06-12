@@ -191,9 +191,6 @@ def render_section(tag: str, release_date: date, entries: list[ChangelogEntry], 
 
 
 def update_changelog(content: str, tag: str, section: str) -> str:
-    if re.search(rf"^## \[{re.escape(tag)}\](?:\s|-)", content, re.MULTILINE):
-        raise ReleasePrepError("Duplicate changelog section", f"CHANGELOG.md already has a section for {tag}.")
-
     marker = re.search(r"^## \[Unreleased\]\s*$", content, re.MULTILINE)
     if not marker:
         raise ReleasePrepError("Missing changelog section", "CHANGELOG.md must contain '## [Unreleased]'.")
@@ -201,6 +198,16 @@ def update_changelog(content: str, tag: str, section: str) -> str:
     insert_at = marker.end()
     tail = content[insert_at:].lstrip()
     return content[:insert_at].rstrip() + "\n\n" + section.rstrip() + "\n\n" + tail
+
+
+def find_changelog_section(content: str, tag: str) -> str | None:
+    marker = re.search(rf"^## \[{re.escape(tag)}\](?:\s|-).*$", content, re.MULTILINE)
+    if not marker:
+        return None
+
+    next_marker = re.search(r"^## \[[^\]]+\](?:\s|-).*$", content[marker.end():], re.MULTILINE)
+    end = marker.end() + next_marker.start() if next_marker else len(content)
+    return content[marker.start():end].strip() + "\n"
 
 
 def update_thunderstore_config(content: str, tag: str) -> str:
@@ -257,13 +264,19 @@ def prepare_release(
     release_date: date,
 ) -> None:
     validate_tag(tag)
-    previous_tag = find_previous_tag(repo, tag)
-    commits = read_commits(repo, previous_tag)
-    entries = parse_commits(commits)
-    section = render_section(tag, release_date, entries, allow_empty)
-
+    previous_tag = None
+    entries: list[ChangelogEntry] = []
     changelog = changelog_path.read_text(encoding="utf-8")
-    changelog_path.write_text(update_changelog(changelog, tag, section), encoding="utf-8", newline="\n")
+    existing_section = find_changelog_section(changelog, tag)
+    if existing_section is None:
+        previous_tag = find_previous_tag(repo, tag)
+        commits = read_commits(repo, previous_tag)
+        entries = parse_commits(commits)
+        section = render_section(tag, release_date, entries, allow_empty)
+        changelog = update_changelog(changelog, tag, section)
+        changelog_path.write_text(changelog, encoding="utf-8", newline="\n")
+    else:
+        section = existing_section
 
     if release_notes_path is not None:
         release_notes_path.parent.mkdir(parents=True, exist_ok=True)
@@ -275,8 +288,11 @@ def prepare_release(
     thunderstore_path.write_text(thunderstore, encoding="utf-8", newline="\n")
 
     print(f"Prepared release {tag}")
-    print(f"Previous tag: {previous_tag or '(none)'}")
-    print(f"Changelog entries: {len(entries)}")
+    if existing_section is None:
+        print(f"Previous tag: {previous_tag or '(none)'}")
+        print(f"Changelog entries: {len(entries)}")
+    else:
+        print("Existing changelog section reused.")
     print(f"Dependency pins: {len(dependency_pins)}")
 
 

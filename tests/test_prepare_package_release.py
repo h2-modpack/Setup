@@ -99,15 +99,12 @@ def test_update_changelog_inserts_after_unreleased() -> None:
     assert_equal(updated, expected, "updated changelog")
 
 
-def test_update_changelog_rejects_duplicate_tag() -> None:
-    assert_raises(
-        "Duplicate changelog section",
-        lambda: prep.update_changelog(
-            "# Changelog\n\n## [Unreleased]\n\n## [1.1.0] - 2026-06-09\n",
-            "1.1.0",
-            "## [1.1.0] - 2026-06-09\n",
-        ),
+def test_find_changelog_section_extracts_existing_release() -> None:
+    section = prep.find_changelog_section(
+        "# Changelog\n\n## [Unreleased]\n\n## [1.1.0] - 2026-06-09\n\n### Fixed\n\n- Thing\n\n## [1.0.0] - 2026-01-01\n",
+        "1.1.0",
     )
+    assert_equal(section, "## [1.1.0] - 2026-06-09\n\n### Fixed\n\n- Thing\n", "existing section")
 
 
 def test_update_thunderstore_config_replaces_version() -> None:
@@ -231,13 +228,45 @@ def test_prepare_release_uses_commits_since_previous_tag() -> None:
         raise AssertionError(thunderstore)
 
 
+def test_prepare_release_reuses_existing_changelog_section() -> None:
+    repo = init_repo()
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [1.1.0] - 2026-06-09\n\n### Fixed\n\n- Existing note\n",
+    )
+    write(repo, "thunderstore.toml", '[package]\nversionNumber = "1.1.0"\n')
+    write(repo, "src/main.lua", "return {}\n")
+    commit(repo, "chore(release): 1.1.0")
+
+    prep.prepare_release(
+        repo=repo,
+        tag="1.1.0",
+        changelog_path=repo / "CHANGELOG.md",
+        thunderstore_path=repo / "thunderstore.toml",
+        release_notes_path=repo / ".release-notes.md",
+        dependency_pins=[],
+        allow_empty=False,
+        release_date=date(2026, 6, 10),
+    )
+
+    changelog = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
+    release_notes = (repo / ".release-notes.md").read_text(encoding="utf-8")
+    assert_equal(changelog.count("## [1.1.0]"), 1, "single release section")
+    assert_equal(
+        release_notes,
+        "## [1.1.0] - 2026-06-09\n\n### Fixed\n\n- Existing note\n",
+        "reused notes",
+    )
+
+
 def main() -> int:
     tests = [
         test_parse_commits_groups_visible_conventional_types,
         test_render_section_rejects_empty_without_allow_empty,
         test_render_section_allows_empty_release,
         test_update_changelog_inserts_after_unreleased,
-        test_update_changelog_rejects_duplicate_tag,
+        test_find_changelog_section_extracts_existing_release,
         test_update_thunderstore_config_replaces_version,
         test_update_dependency_pins_replaces_matching_table_dependency,
         test_update_dependency_pins_replaces_matching_string_dependency,
@@ -245,6 +274,7 @@ def main() -> int:
         test_update_dependency_pins_rejects_duplicate_dependency,
         test_update_dependency_pins_leaves_unmanaged_dependencies,
         test_prepare_release_uses_commits_since_previous_tag,
+        test_prepare_release_reuses_existing_changelog_section,
     ]
     for test in tests:
         test()
