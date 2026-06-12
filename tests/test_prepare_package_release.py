@@ -136,11 +136,13 @@ def test_prepare_release_uses_commits_since_previous_tag() -> None:
         tag="1.1.0",
         changelog_path=repo / "CHANGELOG.md",
         thunderstore_path=repo / "thunderstore.toml",
+        release_notes_path=repo / ".release-notes.md",
         allow_empty=False,
         release_date=date(2026, 6, 9),
     )
 
     changelog = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
+    release_notes = (repo / ".release-notes.md").read_text(encoding="utf-8")
     thunderstore = (repo / "thunderstore.toml").read_text(encoding="utf-8")
     if "## [1.1.0] - 2026-06-09" not in changelog:
         raise AssertionError(changelog)
@@ -148,6 +150,12 @@ def test_prepare_release_uses_commits_since_previous_tag() -> None:
         raise AssertionError(changelog)
     if "update readme" not in changelog:
         raise AssertionError(changelog)
+    if release_notes not in changelog:
+        raise AssertionError(release_notes)
+    if "## [1.1.0] - 2026-06-09" not in release_notes:
+        raise AssertionError(release_notes)
+    if "runtime: add setting" not in release_notes:
+        raise AssertionError(release_notes)
     if 'versionNumber = "1.1.0"' not in thunderstore:
         raise AssertionError(thunderstore)
 

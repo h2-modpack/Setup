@@ -188,6 +188,7 @@ def prepare_release(
     tag: str,
     changelog_path: Path,
     thunderstore_path: Path,
+    release_notes_path: Path | None,
     allow_empty: bool,
     release_date: date,
 ) -> None:
@@ -199,6 +200,10 @@ def prepare_release(
 
     changelog = changelog_path.read_text(encoding="utf-8")
     changelog_path.write_text(update_changelog(changelog, tag, section), encoding="utf-8", newline="\n")
+
+    if release_notes_path is not None:
+        release_notes_path.parent.mkdir(parents=True, exist_ok=True)
+        release_notes_path.write_text(section, encoding="utf-8", newline="\n")
 
     thunderstore = thunderstore_path.read_text(encoding="utf-8")
     thunderstore_path.write_text(update_thunderstore_config(thunderstore, tag), encoding="utf-8", newline="\n")
@@ -214,6 +219,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", default=".", help="Package repo root. Defaults to current directory.")
     parser.add_argument("--changelog", default="CHANGELOG.md", help="Changelog path relative to repo root.")
     parser.add_argument("--thunderstore-config", default="thunderstore.toml", help="Thunderstore config path.")
+    parser.add_argument(
+        "--release-notes-output",
+        default=None,
+        help="Optional path, relative to repo root, where the generated changelog section is written.",
+    )
     parser.add_argument("--allow-empty", action="store_true", help="Allow releases with no visible changelog entries.")
     parser.add_argument("--date", default=None, help="Release date override in YYYY-MM-DD form, for tests/backfills.")
     return parser
@@ -231,6 +241,7 @@ def main(argv: list[str] | None = None) -> int:
             tag=args.tag,
             changelog_path=repo / args.changelog,
             thunderstore_path=repo / args.thunderstore_config,
+            release_notes_path=(repo / args.release_notes_output) if args.release_notes_output else None,
             allow_empty=args.allow_empty,
             release_date=release_date,
         )

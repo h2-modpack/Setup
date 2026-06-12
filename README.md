@@ -134,7 +134,7 @@ GitHub automation helpers:
 | File | Description |
 |---|---|
 | `github/release_all.py` | Shared pack-wide release dispatcher used by shell `Release All` workflows |
-| `github/prepare_package_release.py` | Prepare package-local release files from conventional commits |
+| `github/prepare_package_release.py` | Prepare package-local changelog, release notes, and version files from conventional commits |
 | `tests/test_release_all.py` | Dry-run planner tests for release target normalization and version gating |
 | `validate_platform_versions.py` | Validate required platform dependency edges and print the checked-out version snapshot |
 

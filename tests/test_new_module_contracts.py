@@ -94,6 +94,18 @@ def write_template(root: Path, *, main: str = CURRENT_MAIN_LUA, logic: str = CUR
     (root / "src" / "main.lua").write_text(main, encoding="utf-8")
     (root / "src" / "mods" / "data.lua").write_text(CURRENT_DATA_LUA, encoding="utf-8")
     (root / "src" / "mods" / "logic.lua").write_text(logic, encoding="utf-8")
+    (root / "thunderstore.toml").write_text(
+        """
+[package]
+namespace = "adamantRunDirector"
+name = "GodPool"
+versionNumber = "1.0.0"
+
+[package.dependencies]
+adamant-ModpackLib = "1.0.0"
+""",
+        encoding="utf-8",
+    )
 
 
 def write_coordinator(root: Path, display_name_marker: str) -> None:
@@ -144,6 +156,35 @@ def test_create_validator_rejects_stale_contract() -> None:
             assert "standaloneUiBridge" in str(exc)
         else:
             raise AssertionError("stale module template marker was accepted")
+
+
+def test_create_validator_rejects_module_config_and_chalk_contract() -> None:
+    stale_main = CURRENT_MAIN_LUA + """
+local chalk = mods["SGG_Modding-Chalk"]
+local config = chalk.auto("config.lua")
+local module = lib.createModule({
+    config = config,
+})
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write_template(root, main=stale_main)
+        (root / "src" / "config.lua").write_text("return {}\n", encoding="utf-8")
+        thunderstore = root / "thunderstore.toml"
+        thunderstore.write_text(
+            thunderstore.read_text(encoding="utf-8") + 'SGG_Modding-Chalk = "2.1.1"\n',
+            encoding="utf-8",
+        )
+        try:
+            validate_current_lib_contract(str(root))
+        except RuntimeError as exc:
+            message = str(exc)
+            assert "SGG_Modding-Chalk" in message
+            assert "chalk.auto" in message
+            assert "config = config" in message
+            assert "src/config.lua" in message
+        else:
+            raise AssertionError("stale module config/chalk template marker was accepted")
 
 
 def test_create_writes_standalone_module_test_contract() -> None:
@@ -247,6 +288,7 @@ def main() -> int:
     tests = [
         test_create_validator_accepts_current_contract,
         test_create_validator_rejects_stale_contract,
+        test_create_validator_rejects_module_config_and_chalk_contract,
         test_create_writes_standalone_module_test_contract,
         test_discover_coordinator_reads_pack_display_name,
         test_discover_coordinator_accepts_legacy_window_title,

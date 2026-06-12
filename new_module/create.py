@@ -324,6 +324,8 @@ def validate_current_lib_contract(local_path):
     src_dir = os.path.join(local_path, "src")
     main_path = os.path.join(src_dir, "main.lua")
     data_path = os.path.join(src_dir, "mods", "data.lua")
+    config_path = os.path.join(src_dir, "config.lua")
+    thunderstore_path = os.path.join(local_path, "thunderstore.toml")
     logic_path = os.path.join(src_dir, "logic.lua")
     if not os.path.exists(logic_path):
         logic_path = os.path.join(src_dir, "mods", "logic.lua")
@@ -335,6 +337,8 @@ def validate_current_lib_contract(local_path):
         hits.append("src/mods/data.lua: missing data module file")
     if not os.path.exists(logic_path):
         hits.append("src/mods/logic.lua: missing logic module file")
+    if not os.path.exists(thunderstore_path):
+        hits.append("thunderstore.toml: missing package manifest")
     if hits:
         details = "\n  - ".join(hits)
         raise RuntimeError(
@@ -346,6 +350,7 @@ def validate_current_lib_contract(local_path):
     main_content = read_file(main_path)
     data_content = read_file(data_path)
     logic_content = read_file(logic_path)
+    thunderstore_content = read_file(thunderstore_path)
 
     hits = []
     main_markers = [
@@ -393,6 +398,11 @@ def validate_current_lib_contract(local_path):
         "tryActivate",
         "lib.standaloneHost",
         "standaloneUiBridge",
+        "SGG_Modding-Chalk",
+        "chalk.auto",
+        "config = config",
+        'local chalk = mods["SGG_Modding-Chalk"]',
+        "local chalk = mods['SGG_Modding-Chalk']",
         "hashGroupPlan",
         "buildHashGroupPlan",
         "registerPatchMutation",
@@ -414,8 +424,10 @@ def validate_current_lib_contract(local_path):
         if marker not in logic_content:
             hits.append(f"{os.path.relpath(logic_path, local_path)}: missing current runtime-hook marker '{marker}'")
     for marker in stale_markers:
-        if marker in main_content or marker in logic_content:
+        if marker in main_content or marker in logic_content or marker in thunderstore_content:
             hits.append(f"template still contains stale module pattern marker '{marker}'")
+    if os.path.exists(config_path):
+        hits.append("template still contains stale module config file 'src/config.lua'")
 
     if hits:
         details = "\n  - ".join(hits)
