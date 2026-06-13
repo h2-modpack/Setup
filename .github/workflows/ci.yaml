@@ -19,10 +19,5 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Setup Lua
-        uses: leafo/gh-actions-lua@v10
-        with:
-          luaVersion: "5.2"
-
       - name: Run self tests
         run: python3 tests/all.py
