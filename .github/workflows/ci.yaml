@@ -24,11 +24,5 @@ jobs:
         with:
           luaVersion: "5.2"
 
-      - name: Parse Python sources
-        run: python -m compileall -q .
-
-      - name: Run Python tests
-        run: python test_all.py --python-only
-
-      - name: Parse Lua test sources
-        run: find tests -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac -p
+      - name: Run self tests
+        run: python3 tests/all.py

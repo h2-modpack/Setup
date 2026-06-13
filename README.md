@@ -2,7 +2,7 @@
 
 Shared platform tooling for Hades II modpack shell repos. ModpackTools owns the
 repo automation layer: deployment, module scaffolding, release preparation,
-release dispatch, and shell-level validation entrypoints.
+release dispatch, and maintenance validation helpers.
 
 This repo is usually checked out as `ModpackTools/` inside a shell repo. Use
 [`ModpackBootstrap`](https://github.com/h2-modpack/ModpackBootstrap) for the
@@ -20,10 +20,11 @@ for release preparation and Thunderstore package-state checks, so release tags
 such as `release-tools-V3` are the compatibility contract for publishing.
 
 Shell repos are still the canonical ecosystem validation boundary. A shell repo
-checks out Lib, the coordinator, modules, and ModpackTools together, then runs
-`ModpackTools/run ModpackTools/test_all.py` to validate the assembled snapshot.
-ModpackTools' own CI stays self-contained and validates the tools repo without
-depending on one specific consumer shell.
+checks out Lib, the coordinator, modules, and ModpackTools together. Smoke
+validation should stay shell-owned by passing a shell manifest to Lib's smoke
+runner; ModpackTools should not own pack smoke layouts. ModpackTools' own CI
+stays self-contained and validates the tools repo without depending on one
+specific consumer shell.
 
 ## What This Handles
 
@@ -33,6 +34,17 @@ ModpackTools is the ongoing platform SDK for an existing pack workspace:
 - stage package assets for local deploy, generate manifests, link profiles, and configure git hooks
 - register or prune submodule entries
 - validate release plans and platform dependency edges
+
+## Self Tests
+
+Run the Tools-owned test entrypoint from the ModpackTools repo root:
+
+```bash
+python3 tests/all.py
+```
+
+This is the same command used by ModpackTools CI. Shell smoke tests and
+pack-wide assembled-checkout sweeps stay outside Tools CI.
 
 ## Add A Module
 
@@ -90,8 +102,11 @@ Normal release maintenance is:
 `Release All` validates the checked-out shell snapshot before dispatching child
 release workflows. The dependency validator checks that required Thunderstore
 dependency edges exist, and prints the checked-out package versions plus current
-source pins for auditability. It does not require exact pin equality because
-Thunderstore resolves package dependencies to the latest available version.
+source pins for auditability. The release dispatcher can also verify that each
+selected child repo matches the configured release branch head and has a
+successful `ci.yaml` run for that commit. It does not require exact dependency
+pin equality because Thunderstore resolves package dependencies to the latest
+available version.
 
 Child release workflows should receive an explicit `tools-ref` from the shell
 release workflow. Use a tagged ModpackTools ref for real releases; reserve
@@ -153,6 +168,7 @@ GitHub automation helpers:
 |---|---|
 | `github/release_all.py` | Shared pack-wide release dispatcher used by shell `Release All` workflows |
 | `github/prepare_package_release.py` | Prepare package-local changelog, release notes, and version files from conventional commits |
+| `tests/all.py` | Run ModpackTools-owned compile, Python test, and Lua test-parse checks |
 | `tests/test_release_all.py` | Dry-run planner tests for release target normalization and version gating |
 | `validate_platform_versions.py` | Validate required platform dependency edges and print the checked-out version snapshot |
 

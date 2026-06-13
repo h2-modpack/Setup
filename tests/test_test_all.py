@@ -52,7 +52,7 @@ def test_find_lua_runner_skips_unusable_candidates() -> None:
         test_all.lua_runner_candidates = old_lua_runner_candidates
 
 
-def test_discover_lua_tests_runs_shared_module_smoke_from_shell() -> None:
+def test_discover_lua_tests_runs_lib_modules_and_tools_lua_tests() -> None:
     old_root_dir = test_all.ROOT_DIR
     old_tools_dir = test_all.TOOLS_DIR
 
@@ -62,15 +62,14 @@ def test_discover_lua_tests_runs_shared_module_smoke_from_shell() -> None:
         module_dir = root / "Submodules" / "adamantRunDirector-GodPool"
         lib_tests_dir = root / "adamant-ModpackLib" / "tests"
         module_tests_dir = module_dir / "tests"
+        tools_tests_dir = tools_dir / "tests"
 
         lib_tests_dir.mkdir(parents=True)
         module_tests_dir.mkdir(parents=True)
-        tools_dir.mkdir(parents=True)
+        tools_tests_dir.mkdir(parents=True)
         (lib_tests_dir / "all.lua").write_text("", encoding="utf-8")
         (module_tests_dir / "all.lua").write_text("", encoding="utf-8")
-        (module_tests_dir / "smoke_env.lua").write_text("", encoding="utf-8")
-        (tools_dir / "tests").mkdir(parents=True)
-        (tools_dir / "tests" / "test_module_smoke.lua").write_text("", encoding="utf-8")
+        (tools_tests_dir / "test_tool_contract.lua").write_text("", encoding="utf-8")
 
         try:
             test_all.ROOT_DIR = root
@@ -85,14 +84,14 @@ def test_discover_lua_tests_runs_shared_module_smoke_from_shell() -> None:
         [
             "adamant-ModpackLib",
             "adamantRunDirector-GodPool",
-            "ModpackTools/test_module_smoke.lua",
+            "ModpackTools/test_tool_contract.lua",
         ],
         "lua test commands",
     )
     assert_equal(
         commands[-1].command,
-        ["lua5.2", "ModpackTools/tests/test_module_smoke.lua"],
-        "smoke command",
+        ["lua5.2", "ModpackTools/tests/test_tool_contract.lua"],
+        "tools lua command",
     )
 
 
@@ -101,7 +100,7 @@ def main() -> int:
         test_posix_prefers_native_lua_before_windows_exe,
         test_windows_prefers_windows_lua_exe,
         test_find_lua_runner_skips_unusable_candidates,
-        test_discover_lua_tests_runs_shared_module_smoke_from_shell,
+        test_discover_lua_tests_runs_lib_modules_and_tools_lua_tests,
     ]
     for test in tests:
         test()

@@ -234,6 +234,183 @@ def test_has_workflow_field_matches_field_name() -> None:
     )
 
 
+def test_release_repos_lists_modules_then_coordinator() -> None:
+    config = make_config()
+    plan = release_all.ReleasePlan(
+        module_repos=[
+            "adamantRunDirector-BiomeControl",
+            "adamantRunDirector-GodPool",
+        ],
+        coordinator_selected=True,
+    )
+    assert_equal(
+        release_all.release_repos(config, plan),
+        [
+            "adamantRunDirector-BiomeControl",
+            "adamantRunDirector-GodPool",
+            "adamantRunDirector-RunDirector_Modpack",
+        ],
+        "release repos",
+    )
+
+
+def test_verify_release_plan_ci_checks_selected_repos_and_skips_existing() -> None:
+    config = make_config()
+    plan = release_all.ReleasePlan(
+        module_repos=[
+            "adamantRunDirector-BiomeControl",
+            "adamantRunDirector-BoonBans",
+        ],
+        coordinator_selected=True,
+    )
+    calls: list[tuple[str, str]] = []
+    shas = {
+        "adamantRunDirector-BiomeControl": "a" * 40,
+        "adamantRunDirector-RunDirector_Modpack": "b" * 40,
+    }
+    old_release_exists = release_all.release_exists
+    old_local_repo_head = release_all.local_repo_head
+    old_remote_branch_head = release_all.remote_branch_head
+    old_successful_ci_run_for_commit = release_all.successful_ci_run_for_commit
+
+    def fake_release_exists(_config, repo, _tag):
+        calls.append(("exists", repo))
+        return repo == "adamantRunDirector-BoonBans"
+
+    def fake_local_repo_head(_config, repo):
+        calls.append(("local", repo))
+        return shas[repo]
+
+    def fake_remote_branch_head(_config, repo):
+        calls.append(("remote", repo))
+        return shas[repo]
+
+    def fake_successful_ci_run_for_commit(_config, repo, sha):
+        calls.append(("ci", repo))
+        return 1000 + len(sha)
+
+    try:
+        release_all.release_exists = fake_release_exists
+        release_all.local_repo_head = fake_local_repo_head
+        release_all.remote_branch_head = fake_remote_branch_head
+        release_all.successful_ci_run_for_commit = fake_successful_ci_run_for_commit
+
+        release_all.verify_release_plan_ci(config, plan, "1.2.0", False)
+        assert_equal(calls, [
+            ("exists", "adamantRunDirector-BiomeControl"),
+            ("local", "adamantRunDirector-BiomeControl"),
+            ("remote", "adamantRunDirector-BiomeControl"),
+            ("ci", "adamantRunDirector-BiomeControl"),
+            ("exists", "adamantRunDirector-BoonBans"),
+            ("exists", "adamantRunDirector-RunDirector_Modpack"),
+            ("local", "adamantRunDirector-RunDirector_Modpack"),
+            ("remote", "adamantRunDirector-RunDirector_Modpack"),
+            ("ci", "adamantRunDirector-RunDirector_Modpack"),
+        ], "ci preflight calls")
+    finally:
+        release_all.release_exists = old_release_exists
+        release_all.local_repo_head = old_local_repo_head
+        release_all.remote_branch_head = old_remote_branch_head
+        release_all.successful_ci_run_for_commit = old_successful_ci_run_for_commit
+
+
+def test_verify_repo_ci_rejects_release_ref_mismatch() -> None:
+    config = make_config()
+    old_release_exists = release_all.release_exists
+    old_local_repo_head = release_all.local_repo_head
+    old_remote_branch_head = release_all.remote_branch_head
+
+    try:
+        release_all.release_exists = lambda _config, _repo, _tag: False
+        release_all.local_repo_head = lambda _config, _repo: "a" * 40
+        release_all.remote_branch_head = lambda _config, _repo: "b" * 40
+
+        assert_raises(
+            "Release ref mismatch",
+            lambda: release_all.verify_repo_ci(
+                config,
+                "adamantRunDirector-BiomeControl",
+                "1.2.0",
+                False,
+            ),
+        )
+    finally:
+        release_all.release_exists = old_release_exists
+        release_all.local_repo_head = old_local_repo_head
+        release_all.remote_branch_head = old_remote_branch_head
+
+
+def test_verify_repo_ci_rejects_missing_successful_ci() -> None:
+    config = make_config()
+    old_release_exists = release_all.release_exists
+    old_local_repo_head = release_all.local_repo_head
+    old_remote_branch_head = release_all.remote_branch_head
+    old_successful_ci_run_for_commit = release_all.successful_ci_run_for_commit
+
+    try:
+        release_all.release_exists = lambda _config, _repo, _tag: False
+        release_all.local_repo_head = lambda _config, _repo: "a" * 40
+        release_all.remote_branch_head = lambda _config, _repo: "a" * 40
+        release_all.successful_ci_run_for_commit = lambda _config, _repo, _sha: None
+
+        assert_raises(
+            "CI has not passed",
+            lambda: release_all.verify_repo_ci(
+                config,
+                "adamantRunDirector-BiomeControl",
+                "1.2.0",
+                False,
+            ),
+        )
+    finally:
+        release_all.release_exists = old_release_exists
+        release_all.local_repo_head = old_local_repo_head
+        release_all.remote_branch_head = old_remote_branch_head
+        release_all.successful_ci_run_for_commit = old_successful_ci_run_for_commit
+
+
+def test_dispatch_repo_uses_configured_branch_ref() -> None:
+    config = make_config()
+    calls: list[list[str]] = []
+    old_list_release_runs = release_all.list_release_runs
+    old_run_gh = release_all.run_gh
+    old_find_new_release_run = release_all.find_new_release_run
+
+    def fake_run_gh(args, capture_json=False):
+        calls.append(args)
+        return [] if capture_json else None
+
+    try:
+        release_all.list_release_runs = lambda _config, _repo: []
+        release_all.run_gh = fake_run_gh
+        release_all.find_new_release_run = lambda *_args: 321
+
+        run_id = release_all.dispatch_repo(
+            config,
+            "adamantRunDirector-BiomeControl",
+            "1.2.0",
+            True,
+        )
+        assert_equal(run_id, 321, "dispatch run id")
+        assert_equal(calls[0], [
+            "workflow",
+            "run",
+            "release.yaml",
+            "--repo",
+            "h2pack-rundirector/adamantRunDirector-BiomeControl",
+            "--ref",
+            "main",
+            "--field",
+            "tag=1.2.0",
+            "--field",
+            "is-dry-run=true",
+        ], "workflow dispatch command")
+    finally:
+        release_all.list_release_runs = old_list_release_runs
+        release_all.run_gh = old_run_gh
+        release_all.find_new_release_run = old_find_new_release_run
+
+
 def test_dispatch_plan_releases_modules_and_coordinator_only() -> None:
     config = make_config_with_dependency()
     plan = build_plan("1.2.0", "", config)
@@ -398,6 +575,11 @@ def main() -> int:
         test_build_coordinator_dependency_pin_field_uses_selected_module_repos,
         test_merge_workflow_fields_combines_shared_and_repo_specific_fields,
         test_has_workflow_field_matches_field_name,
+        test_release_repos_lists_modules_then_coordinator,
+        test_verify_release_plan_ci_checks_selected_repos_and_skips_existing,
+        test_verify_repo_ci_rejects_release_ref_mismatch,
+        test_verify_repo_ci_rejects_missing_successful_ci,
+        test_dispatch_repo_uses_configured_branch_ref,
         test_dispatch_plan_releases_modules_and_coordinator_only,
         test_release_phase_waits_for_each_repo_before_dispatching_next,
         test_release_phase_skips_existing_releases,

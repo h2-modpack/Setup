@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 
 GITHUB_DIR = Path(__file__).resolve().parent
@@ -334,6 +335,16 @@ def run_gh(args: list[str], capture_json: bool = False) -> object | None:
     return json.loads(output)
 
 
+def run_gh_text(args: list[str]) -> str:
+    result = subprocess.run(
+        ["gh", *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 def release_exists(config: ReleaseConfig, repo: str, tag: str) -> bool:
     result = subprocess.run(
         [
@@ -360,6 +371,133 @@ def release_exists(config: ReleaseConfig, repo: str, tag: str) -> bool:
         output=result.stdout,
         stderr=result.stderr,
     )
+
+
+def release_repos(config: ReleaseConfig, plan: ReleasePlan) -> list[str]:
+    repos = list(plan.module_repos)
+    if plan.coordinator_selected:
+        repos.append(config.coordinator_repo)
+    return repos
+
+
+def release_repo_path(config: ReleaseConfig, repo: str) -> Path:
+    if repo == config.coordinator_repo:
+        return config.root / repo
+    return config.root / "Submodules" / repo
+
+
+def short_sha(sha: str) -> str:
+    return sha[:12]
+
+
+def local_repo_head(config: ReleaseConfig, repo: str) -> str:
+    repo_path = release_repo_path(config, repo)
+    if not repo_path.is_dir():
+        raise ReleaseError(
+            "Missing release checkout",
+            f"{repo} is selected for release but {repo_path} does not exist in the shell checkout.",
+        )
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise ReleaseError(
+            "Invalid release checkout",
+            f"Could not read local git HEAD for {repo} at {repo_path}.",
+        ) from exc
+    return result.stdout.strip()
+
+
+def remote_branch_head(config: ReleaseConfig, repo: str) -> str:
+    branch = quote(config.branch, safe="")
+    sha = run_gh_text(
+        [
+            "api",
+            f"repos/{config.org}/{repo}/branches/{branch}",
+            "--jq",
+            ".commit.sha",
+        ]
+    )
+    if not sha:
+        raise ReleaseError(
+            "Missing release branch",
+            f"Could not resolve {config.org}/{repo}@{config.branch}.",
+        )
+    return sha
+
+
+def successful_ci_run_for_commit(config: ReleaseConfig, repo: str, sha: str) -> int | None:
+    data = run_gh(
+        [
+            "run",
+            "list",
+            "--repo",
+            f"{config.org}/{repo}",
+            "--workflow",
+            "ci.yaml",
+            "--commit",
+            sha,
+            "--status",
+            "success",
+            "--limit",
+            "1",
+            "--json",
+            "databaseId",
+        ],
+        capture_json=True,
+    )
+    if not isinstance(data, list) or not data:
+        return None
+    database_id = data[0].get("databaseId")
+    return int(database_id) if database_id is not None else None
+
+
+def verify_repo_ci(config: ReleaseConfig, repo: str, tag: str, child_dry_run: bool) -> None:
+    full_repo = f"{config.org}/{repo}"
+    if not child_dry_run and release_exists(config, repo, tag):
+        print(f"--- CI preflight skipped: {full_repo} already has release {tag} ---")
+        return
+
+    local_sha = local_repo_head(config, repo)
+    branch_sha = remote_branch_head(config, repo)
+    if local_sha != branch_sha:
+        raise ReleaseError(
+            "Release ref mismatch",
+            f"{full_repo} is checked out at {short_sha(local_sha)}, but {config.branch} is "
+            f"{short_sha(branch_sha)}. Update the shell checkout/submodule pointer before release_all.",
+        )
+
+    ci_run = successful_ci_run_for_commit(config, repo, branch_sha)
+    if ci_run is None:
+        raise ReleaseError(
+            "CI has not passed",
+            f"No successful ci.yaml run was found for {full_repo}@{short_sha(branch_sha)}. "
+            "Push the commit and wait for CI before release_all.",
+        )
+    print(f"--- CI preflight passed: {full_repo}@{short_sha(branch_sha)} run {ci_run} ---")
+
+
+def verify_release_plan_ci(
+    config: ReleaseConfig,
+    plan: ReleasePlan,
+    tag: str,
+    child_dry_run: bool,
+) -> None:
+    repos = release_repos(config, plan)
+    if not repos:
+        return
+
+    print("")
+    print("==========================================")
+    print("  Release CI preflight")
+    print("==========================================")
+    for repo in repos:
+        verify_repo_ci(config, repo, tag, child_dry_run)
 
 
 def list_release_runs(config: ReleaseConfig, repo: str) -> list[dict]:
@@ -455,6 +593,8 @@ def dispatch_repo(
         config.workflow,
         "--repo",
         f"{config.org}/{repo}",
+        "--ref",
+        config.branch,
     ]
     for field in build_dispatch_fields(
         tag,
@@ -622,6 +762,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Pin selected coordinator module dependencies to the release tag using the dependency-pins workflow field.",
     )
+    parser.add_argument(
+        "--verify-ci",
+        action="store_true",
+        help="Before dispatch, require selected release repos to match the release branch head and have successful ci.yaml for that commit.",
+    )
     return parser
 
 
@@ -651,6 +796,8 @@ def main(argv: list[str] | None = None) -> int:
             if dependency_pin_field is not None:
                 coordinator_fields.append(dependency_pin_field)
         print_plan(plan, config)
+        if args.verify_ci:
+            verify_release_plan_ci(config, plan, args.tag, child_dry_run)
         if not args.plan_only:
             dispatch_release_plan(
                 config,
