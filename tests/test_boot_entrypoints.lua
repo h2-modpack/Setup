@@ -18,16 +18,58 @@ local function assertEquals(actual, expected, message)
     end
 end
 
-local function deepCopy(value)
-    if type(value) ~= "table" then
-        return value
+local function firstExistingFile(paths)
+    for _, path in ipairs(paths) do
+        local file = io.open(path, "r")
+        if file then
+            file:close()
+            return path
+        end
     end
-    local copy = {}
-    for key, child in pairs(value) do
-        copy[key] = deepCopy(child)
-    end
-    return copy
+    return nil
 end
+
+local function dirname(path)
+    return path and path:match("^(.*)[/\\][^/\\]+$") or nil
+end
+
+local function currentScriptDir()
+    local source = debug.getinfo(1, "S").source
+    if type(source) == "string" and source:sub(1, 1) == "@" then
+        return dirname(source:sub(2))
+    end
+    return "ModpackTools/tests"
+end
+
+local function resolveLibRootFromEnv()
+    local envDir = os.getenv("MODPACK_LIB_DIR")
+    if type(envDir) ~= "string" or envDir == "" then
+        return nil
+    end
+    if envDir:match("[/\\]src$") then
+        return dirname(envDir)
+    end
+    return envDir
+end
+
+local function resolveLibFakeEnginePath()
+    local scriptDir = currentScriptDir()
+    local envRoot = resolveLibRootFromEnv()
+    local candidates = {}
+    if envRoot then
+        candidates[#candidates + 1] = envRoot .. "/tests/harness/fake_engine.lua"
+    end
+    candidates[#candidates + 1] = scriptDir .. "/../../adamant-ModpackLib/tests/harness/fake_engine.lua"
+    candidates[#candidates + 1] = "adamant-ModpackLib/tests/harness/fake_engine.lua"
+    candidates[#candidates + 1] = ".modpacklib/tests/harness/fake_engine.lua"
+    candidates[#candidates + 1] = "../../adamant-ModpackLib/tests/harness/fake_engine.lua"
+
+    local path = firstExistingFile(candidates)
+    assert(path, "unable to locate adamant-ModpackLib/tests/harness/fake_engine.lua")
+    return path
+end
+
+local fakeEngine = dofile(resolveLibFakeEnginePath())
 
 local function listDirs(path)
     local isWindows = package.config:sub(1, 1) == "\\"
@@ -138,16 +180,6 @@ local function discoverPack()
     }
 end
 
-local function makeImgui()
-    return setmetatable({}, {
-        __index = function()
-            return function()
-                return false
-            end
-        end,
-    })
-end
-
 local function makeConfig()
     return {
         ModEnabled = true,
@@ -162,219 +194,61 @@ local function makeConfig()
     }
 end
 
-local function makeModUtil(callbacks, globals)
-    local path = {}
-    path.Context = {}
+local function resolveLibSrcDir()
+    local scriptDir = currentScriptDir()
+    local envRoot = resolveLibRootFromEnv()
+    local candidates = {}
+    if envRoot then
+        candidates[#candidates + 1] = envRoot .. "/src"
+    end
+    candidates[#candidates + 1] = scriptDir .. "/../../adamant-ModpackLib/src"
+    candidates[#candidates + 1] = "adamant-ModpackLib/src"
+    candidates[#candidates + 1] = ".modpacklib/src"
+    candidates[#candidates + 1] = "../../adamant-ModpackLib/src"
 
-    function path.Wrap(name, handler)
-        callbacks.wraps[#callbacks.wraps + 1] = { kind = "wrap", name = name, handler = handler }
+    local files = {}
+    for index, path in ipairs(candidates) do
+        files[index] = path .. "/main.lua"
     end
 
-    function path.Override(name, replacement)
-        callbacks.wraps[#callbacks.wraps + 1] = { kind = "override", name = name, replacement = replacement }
-    end
-
-    function path.Restore(name)
-        callbacks.wraps[#callbacks.wraps + 1] = { kind = "restore", name = name }
-    end
-
-    function path.Context.Wrap(name, handler)
-        callbacks.wraps[#callbacks.wraps + 1] = { kind = "contextWrap", name = name, handler = handler }
-    end
-
-    local runtime = {
-        Path = path,
-    }
-
-    globals.ModUtil = runtime
-
-    return {
-        globals = globals,
-        once_loaded = {
-            game = function(callback)
-                callbacks.gameLoaded[#callbacks.gameLoaded + 1] = callback
-            end,
-        },
-        mod = runtime,
-    }
+    local mainFile = firstExistingFile(files)
+    assert(mainFile, "unable to locate adamant-ModpackLib/src/main.lua")
+    local srcDir = mainFile:gsub("/main%.lua$", "")
+    return srcDir
 end
 
-local function resetWorld()
-    local callbacks = {
-        allModsLoaded = {},
-        gameLoaded = {},
-        wraps = {},
-        imgui = {},
-        alwaysDraw = {},
-        menuBar = {},
-        setupRunDataCount = 0,
-    }
-    local game = {
-        DeepCopyTable = deepCopy,
-        SetupRunData = function()
-            callbacks.setupRunDataCount = callbacks.setupRunDataCount + 1
+local function createWorld()
+    local env, callbacks = fakeEngine.createBaseEnv({
+        config = makeConfig(),
+        runtimeRoot = {},
+        withReload = true,
+        ScreenData = {
+            HUD = {
+                ComponentData = {},
+            },
+        },
+        chalkOriginal = function(config)
+            return config
         end,
+    })
+    return {
+        env = env,
+        callbacks = callbacks,
     }
-    local modUtil = makeModUtil(callbacks, game)
-
-    local mods = {
-        ["SGG_Modding-ENVY"] = {
-            auto = function()
-                return {}
-            end,
-        },
-        ["SGG_Modding-Chalk"] = {
-            auto = function()
-                return makeConfig()
-            end,
-            original = function(config)
-                return config
-            end,
-        },
-        ["SGG_Modding-ReLoad"] = {
-            auto_single = function()
-                return {
-                    load = function(...)
-                        for index = 1, select("#", ...) do
-                            local callback = select(index, ...)
-                            if type(callback) == "function" then
-                                callback()
-                            end
-                        end
-                    end,
-                }
-            end,
-        },
-        ["SGG_Modding-ModUtil"] = modUtil,
-    }
-
-    function mods.on_all_mods_loaded(callback)
-        callbacks.allModsLoaded[#callbacks.allModsLoaded + 1] = callback
-    end
-
-    rom = {
-        mods = mods,
-        game = game,
-        ImGui = makeImgui(),
-        ImGuiCol = {
-            Text = 1,
-            TextDisabled = 2,
-            WindowBg = 3,
-            ChildBg = 4,
-            Header = 5,
-            HeaderHovered = 6,
-            HeaderActive = 7,
-            Button = 8,
-            ButtonHovered = 9,
-            ButtonActive = 10,
-            FrameBg = 11,
-            FrameBgHovered = 12,
-            FrameBgActive = 13,
-            CheckMark = 14,
-            Tab = 15,
-            TabHovered = 16,
-            TabActive = 17,
-            Separator = 18,
-            Border = 19,
-            TitleBgActive = 20,
-        },
-        ImGuiCond = {
-            FirstUseEver = 1,
-        },
-        gui = {
-            add_imgui = function(callback)
-                callbacks.imgui[#callbacks.imgui + 1] = callback
-            end,
-            add_always_draw_imgui = function(callback)
-                callbacks.alwaysDraw[#callbacks.alwaysDraw + 1] = callback
-            end,
-            add_to_menu_bar = function(callback)
-                callbacks.menuBar[#callbacks.menuBar + 1] = callback
-            end,
-            is_open = function()
-                return false
-            end,
-        },
-    }
-
-    game = rom.game
-    modutil = modUtil
-    ScreenData = {
-        HUD = {
-            ComponentData = {},
-        },
-    }
-
-    AdamantModpackLib_Runtime = nil
-    lib = nil
-    public = nil
-    _PLUGIN = nil
-
-    return callbacks
 end
 
-local function addFallback(env, fallback)
-    local metatable = getmetatable(env)
-    if metatable == nil then
-        setmetatable(env, { __index = fallback })
-    elseif metatable.__index == nil then
-        metatable.__index = fallback
-    end
-    return env
-end
-
-local function loadPlugin(guid, srcDir, mainPath)
-    local env = addFallback({
-        _G = _G,
-        _PLUGIN = { guid = guid },
-        public = {},
-    }, _G)
-
-    env.import_as_fallback = function(source)
-        if type(source) ~= "table" then
-            return
-        end
-        for key, value in pairs(source) do
-            if env[key] == nil then
-                env[key] = value
-            end
-        end
-    end
-
-    env.import = function(path, fenv, ...)
-        local chunkEnv = fenv or env
-        if fenv then
-            addFallback(chunkEnv, env)
-        end
-        local chunk = assert(loadfile(srcDir .. "/" .. path, "t", chunkEnv))
-        return chunk(...)
-    end
-
-    local chunk = assert(loadfile(mainPath or (srcDir .. "/main.lua"), "t", env))
-    chunk()
-    rom.mods[guid] = env.public
-    return env
-end
-
-local function runCallbacks(callbacks, label)
-    for index, callback in ipairs(callbacks) do
-        local ok, err = xpcall(callback, debug.traceback)
-        if not ok then
-            fail(string.format("%s callback %d failed: %s", label, index, tostring(err)))
-        end
-    end
-end
-
-local function loadLib()
-    local libEnv = loadPlugin("adamant-ModpackLib", "adamant-ModpackLib/src")
+local function loadLib(world)
+    local libEnv = fakeEngine.loadPlugin(world.env, "adamant-ModpackLib", resolveLibSrcDir())
+    world.env.lib = libEnv.public
+    world.env.rom.mods["adamant-ModpackLib"] = libEnv.public
     assertEquals(type(libEnv.public.modpack.createPack), "function", "Modpack.createPack export")
     return libEnv
 end
 
-local function installSyntheticModules(pack)
-    local libApi = rom.mods["adamant-ModpackLib"]
+local function installSyntheticModules(world, pack)
+    local libApi = world.env.rom.mods["adamant-ModpackLib"]
     for _, module in ipairs(pack.modules) do
-        rom.mods[module.dir] = {}
+        world.env.rom.mods[module.dir] = {}
         local host = libApi.createModule({
             pluginGuid = module.dir,
             modpack = pack.packId,
@@ -392,16 +266,15 @@ end
 
 local function testConventionPackPipelineBoots()
     local pack = discoverPack()
-    local callbacks = resetWorld()
-    local libEnv = loadLib()
+    local world = createWorld()
+    local libEnv = loadLib(world)
 
-    installSyntheticModules(pack)
-    loadPlugin(pack.coreDir, pack.coreDir .. "/src")
+    installSyntheticModules(world, pack)
+    fakeEngine.loadPlugin(world.env, pack.coreDir, pack.coreDir .. "/src")
 
-    runCallbacks(callbacks.allModsLoaded, "on_all_mods_loaded")
-
-    runCallbacks(callbacks.gameLoaded, "once_loaded.game")
-    runCallbacks(callbacks.alwaysDraw, "always_draw_imgui")
+    fakeEngine.runAllModsLoaded(world.callbacks)
+    fakeEngine.runGameLoaded(world.callbacks)
+    fakeEngine.runAlwaysDraw(world.callbacks)
 
     local runtimeRegistry = libEnv.AdamantModpackLib_Runtime and libEnv.AdamantModpackLib_Runtime.registry
     local packRegistry = runtimeRegistry and runtimeRegistry.modpacks
