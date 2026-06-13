@@ -1,7 +1,8 @@
 # ModpackTools
 
-Deployment, module scaffolding, release, and maintenance scripts for Hades II
-modpack shell repos.
+Shared platform tooling for Hades II modpack shell repos. ModpackTools owns the
+repo automation layer: deployment, module scaffolding, release preparation,
+release dispatch, and shell-level validation entrypoints.
 
 This repo is usually checked out as `ModpackTools/` inside a shell repo. Use
 [`ModpackBootstrap`](https://github.com/h2-modpack/ModpackBootstrap) for the
@@ -11,9 +12,22 @@ New users should start with the
 [`ModpackBootstrap` Getting Started guide](https://github.com/h2-modpack/ModpackBootstrap/blob/main/docs/GETTING_STARTED.md),
 then return here for ongoing pack maintenance commands.
 
+## Role In The Platform
+
+ModpackTools is load-bearing shared infrastructure, not only a convenience
+script collection. Child package release workflows use tagged ModpackTools refs
+for release preparation and Thunderstore package-state checks, so release tags
+such as `release-tools-V3` are the compatibility contract for publishing.
+
+Shell repos are still the canonical ecosystem validation boundary. A shell repo
+checks out Lib, the coordinator, modules, and ModpackTools together, then runs
+`ModpackTools/run ModpackTools/test_all.py` to validate the assembled snapshot.
+ModpackTools' own CI stays self-contained and validates the tools repo without
+depending on one specific consumer shell.
+
 ## What This Handles
 
-ModpackTools is the ongoing toolbelt for an existing pack workspace:
+ModpackTools is the ongoing platform SDK for an existing pack workspace:
 
 - scaffold new module repos from the module template
 - stage package assets for local deploy, generate manifests, link profiles, and configure git hooks
@@ -78,6 +92,10 @@ release workflows. The dependency validator checks that required Thunderstore
 dependency edges exist, and prints the checked-out package versions plus current
 source pins for auditability. It does not require exact pin equality because
 Thunderstore resolves package dependencies to the latest available version.
+
+Child release workflows should receive an explicit `tools-ref` from the shell
+release workflow. Use a tagged ModpackTools ref for real releases; reserve
+floating branches for local development or temporary dry-run testing.
 
 Before publishing releases, also add these GitHub Actions org secrets with
 **All repositories** access:
