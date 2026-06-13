@@ -7,7 +7,7 @@ remote URL, and runs `git submodule add --force` to register them.
 With --prune, also removes .gitmodules entries whose Submodules/ folder is gone.
 
 After register/prune, syncs the coordinator module's managed Thunderstore
-dependency block.
+dependency block. Smoke tests read the registered roster from .gitmodules.
 
 Repos with no remote configured are skipped with a warning - create the GitHub
 repo first, add it as `origin`, then re-run this script.
@@ -21,13 +21,14 @@ import os
 import sys
 import subprocess
 import configparser
-from coordinator_deps import update_coordinator_deps
 
 
 TOOLS_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR       = os.path.dirname(TOOLS_DIR)
 SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
 GITMODULES     = os.path.join(ROOT_DIR, ".gitmodules")
+
+from coordinator_deps import update_coordinator_deps
 
 
 # =============================================================================

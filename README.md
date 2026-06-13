@@ -62,7 +62,8 @@ On Windows Command Prompt or PowerShell, use `ModpackTools\run.bat` instead of
 `create.py` creates the GitHub repo from
 [`ModpackModuleTemplate`](https://github.com/h2-modpack/ModpackModuleTemplate),
 fills in module identity, commits the initial repo, registers it under
-`Submodules/`, and syncs the coordinator dependency block.
+`Submodules/`, and syncs the coordinator dependency block. Shell smoke derives
+the module roster from `.gitmodules`.
 
 Generated module package names do not include the pack prefix because the pack
 team already carries that identity. For example, in a pack using
@@ -84,12 +85,35 @@ ModpackTools/run ModpackTools/local_deploy/deploy_all.py --overwrite
 configures git hooks. Use `--overwrite` when regenerating files or links that
 already exist.
 
+When the shell repo has `tests/smoke.lua`, deployment first runs the same smoke
+command used by shell CI:
+
+```bash
+lua tests/smoke.lua
+```
+
+If smoke fails, deployment stops before writing to the live profile. Use
+`--skip-smoke` only for exceptional debugging cases.
+
 When running from WSL with a Windows r2modman profile, deployment resolves the
 profile through `APPDATA` or by querying Windows directly, then copies package
 folders into the Windows profile. Same-side deploys keep using symlinks by
 default. Use `--link-mode copy` or `--link-mode symlink` to force one mode, and
 `--profile-root PATH` when the profile directory cannot be discovered
 automatically.
+
+## Local Checkout Tests
+
+To run a broader local assembled-checkout sweep from the shell repo root:
+
+```bash
+ModpackTools/run ModpackTools/local_test/all.py
+```
+
+This is local convenience only and is not part of ModpackTools CI. It runs the
+same shell smoke command as shell CI, then runs each registered repo's declared
+`tests/all.lua` or `tests/all.py` entrypoint when present. It does not discover
+arbitrary test files.
 
 ## Remote Maintenance And Release
 
@@ -139,6 +163,9 @@ After deleting module folders from `Submodules/`, prune stale entries:
 ModpackTools/run ModpackTools/new_module/register_submodules.py --prune
 ```
 
+Both register and prune flows refresh the coordinator dependency block. Shell
+smoke derives the module roster directly from `.gitmodules`.
+
 To commit and push a shared change across all module repos:
 
 ```bash
@@ -159,8 +186,9 @@ Deployment helpers:
 
 | File | Description |
 |---|---|
-| `local_deploy/deploy_all.py` | Full local deploy: staged package assets, manifests, symlinks, git hooks |
+| `local_deploy/deploy_all.py` | Full local deploy: smoke preflight, staged package assets, manifests, symlinks, git hooks |
 | `local_deploy/steps/` | Implementation modules used by `deploy_all.py` |
+| `local_test/all.py` | Local assembled-checkout sweep driven by the registered shell composition |
 
 GitHub automation helpers:
 
@@ -179,6 +207,7 @@ Scaffolding helpers:
 | `new_module/create.py` | Scaffold a module repo from the template and register it as a submodule |
 | `new_module/register_submodules.py` | Register or prune `Submodules/` entries in `.gitmodules` |
 | `new_module/coordinator_deps.py` | Sync the coordinator's managed module dependency block |
+| `new_module/module_roster.py` | Shared discovery for registered module package metadata |
 
 ## Common Flags
 
@@ -190,4 +219,5 @@ Most scripts share these flags:
 | `--profile NAME` | `h2-dev` | r2modman profile to deploy into |
 | `--profile-root PATH` | auto | Directory containing r2modman profile folders |
 | `--link-mode auto\|symlink\|copy` | `auto` | Use symlinks, copy folders, or auto-detect WSL-to-Windows copy deploy |
+| `--skip-smoke` | off | Skip deploy-time shell smoke preflight |
 | `--dry-run` | off | Show what would happen without making changes, where supported |

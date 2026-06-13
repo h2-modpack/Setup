@@ -4,12 +4,13 @@ Sync the coordinator module's managed Thunderstore dependency block.
 
 import os
 import re
-import tomllib
+from pathlib import Path
+
+from module_roster import discover_module_repos, find_coordinator_package
 
 
 TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR = os.path.dirname(TOOLS_DIR)
-SUBMODULES_DIR = os.path.join(ROOT_DIR, "Submodules")
 
 MARKER_START = "# -- submodules-start --"
 MARKER_END = "# -- submodules-end --"
@@ -17,55 +18,8 @@ MARKER_END = "# -- submodules-end --"
 
 def find_coordinator_toml():
     """Find the coordinator module's thunderstore.toml in root-level folders."""
-    for entry in os.scandir(ROOT_DIR):
-        if not entry.is_dir() or entry.name.startswith("."):
-            continue
-        toml_path = os.path.join(entry.path, "thunderstore.toml")
-        if not os.path.exists(toml_path):
-            continue
-        with open(toml_path, "rb") as f:
-            data = tomllib.load(f)
-        name = data.get("package", {}).get("name", "")
-        if name.endswith("_Modpack"):
-            return toml_path
-    return None
-
-
-def submodule_version(name):
-    """Read versionNumber from a submodule's thunderstore.toml, default 1.0.0."""
-    toml_path = os.path.join(SUBMODULES_DIR, name, "thunderstore.toml")
-    if not os.path.exists(toml_path):
-        return "1.0.0"
-    with open(toml_path, "rb") as f:
-        data = tomllib.load(f)
-    return data.get("package", {}).get("versionNumber", "1.0.0")
-
-
-def submodule_package_id(name):
-    """Read {namespace}-{name} from a submodule's thunderstore.toml, fall back to folder name."""
-    toml_path = os.path.join(SUBMODULES_DIR, name, "thunderstore.toml")
-    if not os.path.exists(toml_path):
-        return name
-    with open(toml_path, "rb") as f:
-        data = tomllib.load(f)
-    pkg = data.get("package", {})
-    namespace = pkg.get("namespace", "")
-    package_name = pkg.get("name", "")
-    if namespace and package_name:
-        return f"{namespace}-{package_name}"
-    return name
-
-
-def current_submodule_names():
-    """Return sorted list of submodule folder names in Submodules/."""
-    names = []
-    for entry in sorted(os.scandir(SUBMODULES_DIR), key=lambda e: e.name):
-        if not entry.is_dir() or entry.name.startswith("."):
-            continue
-        if not os.path.exists(os.path.join(entry.path, ".git")):
-            continue
-        names.append(entry.name)
-    return names
+    coordinator = find_coordinator_package(Path(ROOT_DIR))
+    return str(coordinator.toml_path) if coordinator is not None else None
 
 
 def update_coordinator_deps():
@@ -83,8 +37,8 @@ def update_coordinator_deps():
     print(f"  Replacing managed block between '{MARKER_START}' and '{MARKER_END}'")
     print("  (infrastructure deps above the markers are left untouched)")
 
-    names = current_submodule_names()
-    lines = [f'{submodule_package_id(name)} = "{submodule_version(name)}"' for name in names]
+    repos = discover_module_repos(Path(ROOT_DIR))
+    lines = [f'{repo.dependency_id} = "{repo.dependency_version}"' for repo in repos]
     block = MARKER_START + "\n" + "\n".join(lines) + "\n" + MARKER_END
 
     text = open(coordinator_toml, encoding="utf-8").read()
@@ -104,6 +58,6 @@ def update_coordinator_deps():
             new_text = text.rstrip() + "\n" + block + "\n"
 
     open(coordinator_toml, "w", encoding="utf-8").write(new_text)
-    print(f"  synced  coordinator deps ({len(names)} submodules)  ->  {os.path.relpath(coordinator_toml, ROOT_DIR)}")
+    print(f"  synced  coordinator deps ({len(repos)} submodules)  ->  {os.path.relpath(coordinator_toml, ROOT_DIR)}")
     print()
     print("  NOTE: Run `ModpackTools/run ModpackTools/local_deploy/deploy_all.py --overwrite` to deploy changes to the game.")

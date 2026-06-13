@@ -32,7 +32,6 @@ versionNumber = "{version}"
 def write_module(root: Path, folder: str, *, namespace: str, name: str, version: str) -> None:
     module_dir = root / "Submodules" / folder
     module_dir.mkdir(parents=True)
-    (module_dir / ".git").write_text("gitdir: ../../.git/modules/" + folder, encoding="utf-8")
     write_package_toml(
         module_dir / "thunderstore.toml",
         namespace=namespace,
@@ -41,19 +40,28 @@ def write_module(root: Path, folder: str, *, namespace: str, name: str, version:
     )
 
 
+def write_gitmodules(root: Path, paths: list[str]) -> None:
+    root.joinpath(".gitmodules").write_text(
+        "".join(
+            f'[submodule "{path}"]\n'
+            f"\tpath = {path}\n"
+            f"\turl = https://example.invalid/{path.split('/')[-1]}.git\n"
+            for path in paths
+        ),
+        encoding="utf-8",
+    )
+
+
 def with_temp_roots(func) -> None:
     old_root = coordinator_deps.ROOT_DIR
-    old_submodules = coordinator_deps.SUBMODULES_DIR
     try:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "Submodules").mkdir()
             coordinator_deps.ROOT_DIR = str(root)
-            coordinator_deps.SUBMODULES_DIR = str(root / "Submodules")
             func(root)
     finally:
         coordinator_deps.ROOT_DIR = old_root
-        coordinator_deps.SUBMODULES_DIR = old_submodules
 
 
 def test_update_coordinator_deps_replaces_managed_block_only() -> None:
@@ -80,6 +88,14 @@ icon = "./icon.png"
         )
         write_module(root, "adamantSpeedrun-Zeta", namespace="adamantSpeedrun", name="Zeta", version="2.0.0")
         write_module(root, "adamantSpeedrun-Alpha", namespace="adamantSpeedrun", name="Alpha", version="1.2.3")
+        write_gitmodules(
+            root,
+            [
+                "adamantSpeedrun-Speedrun_Modpack",
+                "Submodules/adamantSpeedrun-Zeta",
+                "Submodules/adamantSpeedrun-Alpha",
+            ],
+        )
 
         coordinator_deps.update_coordinator_deps()
 
@@ -122,6 +138,13 @@ repository = "https://thunderstore.io"
             encoding="utf-8",
         )
         write_module(root, "adamantRunDirector-GodPool", namespace="adamantRunDirector", name="GodPool", version="0.0.1")
+        write_gitmodules(
+            root,
+            [
+                "adamantRunDirector-RunDirector_Modpack",
+                "Submodules/adamantRunDirector-GodPool",
+            ],
+        )
 
         coordinator_deps.update_coordinator_deps()
 
